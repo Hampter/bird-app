@@ -42,7 +42,7 @@ The SQLite DB and uploaded photos are stored in a local `data/` folder so it can
    ```
 
 2. Open the app at:
-   - Frontend: `http://localhost:8080`
+   - Frontend: `http://localhost:7000`
 
 Notes:
 
