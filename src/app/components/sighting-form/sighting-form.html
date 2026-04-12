@@ -1,5 +1,13 @@
 <div class="form-page">
-  <h1>Log a Bird Sighting</h1>
+  <h1>{{ pageTitle() }}</h1>
+
+  @if (loadError(); as error) {
+    <p class="load-error" role="status" aria-live="polite">{{ error }}</p>
+  }
+
+  @if (loadingExisting()) {
+    <p class="load-status" role="status" aria-live="polite">Loading sighting details…</p>
+  }
 
   <form [formGroup]="form" (ngSubmit)="onSubmit()">
     <div class="form-row">
@@ -78,19 +86,26 @@
     </div>
 
     <div class="form-group">
-      <label for="image">Photo</label>
+      <label for="image">Photo @if (isEditMode()) { (optional replacement) }</label>
       <input id="image" type="file" accept="image/*" (change)="onFileSelected($event)" />
+      @if (existingImageUrl() && !imagePreview()) {
+        <img [src]="existingImageUrl()" alt="Current sighting photo" class="image-preview" />
+      }
       @if (imagePreview(); as preview) {
         <img [src]="preview" alt="Selected photo preview" class="image-preview" />
       }
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting()">
+      <button
+        type="submit"
+        class="btn btn-primary"
+        [disabled]="form.invalid || submitting() || loadingExisting()"
+      >
         @if (submitting()) {
           Saving...
         } @else {
-          Save Sighting
+          {{ submitLabel() }}
         }
       </button>
     </div>

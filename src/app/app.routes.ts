@@ -16,6 +16,11 @@ export const routes: Routes = [
       import('./components/sighting-list/sighting-list').then((m) => m.SightingListComponent),
   },
   {
+    path: 'sightings/:id/edit',
+    loadComponent: () =>
+      import('./components/sighting-form/sighting-form').then((m) => m.SightingFormComponent),
+  },
+  {
     path: 'sightings/:id',
     loadComponent: () =>
       import('./components/sighting-detail/sighting-detail').then((m) => m.SightingDetailComponent),

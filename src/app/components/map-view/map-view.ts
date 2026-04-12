@@ -79,7 +79,51 @@ export class MapViewComponent implements OnDestroy {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
     });
+
+    this.map.on('click', (event: { lngLat: { lng: number; lat: number } }) => {
+      const { lng, lat } = event.lngLat;
+      this.showAddSightingPopup(lng, lat);
+    });
+
     this.mapReady.set(true);
+  }
+
+  private showAddSightingPopup(lng: number, lat: number): void {
+    if (!this.map) return;
+
+    const popupContent = document.createElement('div');
+    popupContent.className = 'sighting-popup';
+
+    const title = document.createElement('strong');
+    title.textContent = 'Add a sighting here?';
+    popupContent.appendChild(title);
+
+    popupContent.appendChild(document.createElement('br'));
+
+    const coords = document.createElement('small');
+    coords.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    popupContent.appendChild(coords);
+
+    popupContent.appendChild(document.createElement('br'));
+
+    const addBtn = document.createElement('button');
+    addBtn.textContent = 'Add sighting at this spot';
+    addBtn.className = 'popup-link';
+    addBtn.addEventListener('click', () => {
+      this.router.navigate(['/add'], {
+        queryParams: { lat: lat.toFixed(6), lng: lng.toFixed(6) },
+      });
+    });
+    popupContent.appendChild(addBtn);
+
+    new Popup({
+      anchor: 'bottom',
+      offset: 0,
+      closeOnClick: true,
+    })
+      .setLngLat([lng, lat])
+      .setDOMContent(popupContent)
+      .addTo(this.map);
   }
 
   private loadSightings(): void {

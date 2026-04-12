@@ -9,7 +9,7 @@ import {
   afterNextRender,
   OnDestroy,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
@@ -25,18 +25,30 @@ import { MAP_STYLE, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../shared/map.config
 export class SightingFormComponent implements OnDestroy {
   private readonly sightingService = inject(SightingService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   private map: Map | null = null;
   private marker: Marker | null = null;
   private selectedFile: File | null = null;
 
   protected readonly imagePreview = signal<string | null>(null);
+  protected readonly existingImageUrl = signal<string | null>(null);
   protected readonly submitting = signal(false);
+  protected readonly loadingExisting = signal(false);
+  protected readonly loadError = signal<string | null>(null);
   protected readonly locating = signal(false);
   protected readonly locationError = signal<string | null>(null);
+  protected readonly editId = signal<number | null>(null);
   protected readonly selectedCoords = signal<{ lat: number; lng: number } | null>(null);
   protected readonly geolocationSupported =
     typeof navigator !== 'undefined' && 'geolocation' in navigator;
+  protected readonly isEditMode = computed(() => this.editId() !== null);
+  protected readonly pageTitle = computed(() =>
+    this.isEditMode() ? 'Edit Bird Sighting' : 'Log a Bird Sighting',
+  );
+  protected readonly submitLabel = computed(() =>
+    this.isEditMode() ? 'Save Changes' : 'Save Sighting',
+  );
 
   protected readonly coordsDisplay = computed(() => {
     const coords = this.selectedCoords();
@@ -58,7 +70,14 @@ export class SightingFormComponent implements OnDestroy {
   });
 
   constructor() {
-    afterNextRender(() => this.initMap());
+    this.initializeEditMode();
+
+    afterNextRender(() => {
+      this.initMap();
+      if (!this.isEditMode()) {
+        this.prefillLocationFromQueryParams();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -89,6 +108,91 @@ export class SightingFormComponent implements OnDestroy {
     }
   }
 
+  private initializeEditMode(): void {
+    const idParam = this.route.snapshot.paramMap.get('id');
+    if (!idParam) {
+      return;
+    }
+
+    const parsedId = Number.parseInt(idParam, 10);
+    if (Number.isNaN(parsedId)) {
+      return;
+    }
+
+    this.editId.set(parsedId);
+    this.loadExistingSighting(parsedId);
+  }
+
+  private loadExistingSighting(id: number): void {
+    this.loadingExisting.set(true);
+    this.loadError.set(null);
+
+    this.sightingService.getById(id).subscribe({
+      next: (sighting) => {
+        const unknownDate = !sighting.sighting_date;
+        this.form.patchValue({
+          species: sighting.species,
+          description: sighting.description ?? '',
+          sighting_date: sighting.sighting_date,
+          unknown_date: unknownDate,
+          latitude: sighting.latitude,
+          longitude: sighting.longitude,
+        });
+        this.applyUnknownDateValidation(unknownDate);
+        this.selectedCoords.set({ lat: sighting.latitude, lng: sighting.longitude });
+        this.updateMarker(sighting.longitude, sighting.latitude);
+        this.map?.jumpTo({ center: [sighting.longitude, sighting.latitude], zoom: 14 });
+
+        if (sighting.image_filename) {
+          this.existingImageUrl.set(this.sightingService.getImageUrl(sighting.image_filename));
+        }
+
+        this.loadingExisting.set(false);
+      },
+      error: () => {
+        this.loadError.set('Unable to load this sighting for editing.');
+        this.loadingExisting.set(false);
+      },
+    });
+  }
+
+  private applyUnknownDateValidation(unknownDate: boolean): void {
+    const sightingDateControl = this.form.controls.sighting_date;
+    if (unknownDate) {
+      sightingDateControl.setValue(null);
+      sightingDateControl.clearValidators();
+    } else {
+      sightingDateControl.setValidators([Validators.required]);
+      if (!sightingDateControl.value) {
+        sightingDateControl.setValue(new Date().toISOString().split('T')[0]);
+      }
+    }
+
+    sightingDateControl.updateValueAndValidity();
+  }
+
+  private prefillLocationFromQueryParams(): void {
+    const latQuery = this.route.snapshot.queryParamMap.get('lat');
+    const lngQuery = this.route.snapshot.queryParamMap.get('lng');
+    if (!latQuery || !lngQuery) {
+      return;
+    }
+
+    const lat = Number.parseFloat(latQuery);
+    const lng = Number.parseFloat(lngQuery);
+    const validLat = Number.isFinite(lat) && lat >= -90 && lat <= 90;
+    const validLng = Number.isFinite(lng) && lng >= -180 && lng <= 180;
+
+    if (!validLat || !validLng) {
+      return;
+    }
+
+    this.form.patchValue({ latitude: lat, longitude: lng });
+    this.selectedCoords.set({ lat, lng });
+    this.updateMarker(lng, lat);
+    this.map?.jumpTo({ center: [lng, lat], zoom: 14 });
+  }
+
   protected useCurrentLocation(): void {
     this.locationError.set(null);
 
@@ -107,7 +211,7 @@ export class SightingFormComponent implements OnDestroy {
         this.form.patchValue({ latitude: lat, longitude: lng });
         this.selectedCoords.set({ lat, lng });
         this.updateMarker(lng, lat);
-        this.map?.flyTo({ center: [lng, lat], zoom: 14 });
+        this.map?.jumpTo({ center: [lng, lat], zoom: 14 });
 
         this.locating.set(false);
       },
@@ -137,20 +241,8 @@ export class SightingFormComponent implements OnDestroy {
 
   protected onUnknownDateToggle(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
-    const sightingDateControl = this.form.controls.sighting_date;
     this.form.controls.unknown_date.setValue(checked);
-
-    if (checked) {
-      sightingDateControl.setValue(null);
-      sightingDateControl.clearValidators();
-    } else {
-      sightingDateControl.setValidators([Validators.required]);
-      if (!sightingDateControl.value) {
-        sightingDateControl.setValue(new Date().toISOString().split('T')[0]);
-      }
-    }
-
-    sightingDateControl.updateValueAndValidity();
+    this.applyUnknownDateValidation(checked);
   }
 
   protected onSubmit(): void {
@@ -174,7 +266,11 @@ export class SightingFormComponent implements OnDestroy {
       formData.append('image', this.selectedFile);
     }
 
-    this.sightingService.create(formData).subscribe({
+    const editId = this.editId();
+    const request$ =
+      editId !== null ? this.sightingService.update(editId, formData) : this.sightingService.create(formData);
+
+    request$.subscribe({
       next: (sighting) => this.router.navigate(['/sightings', sighting.id]),
       error: () => this.submitting.set(false),
     });

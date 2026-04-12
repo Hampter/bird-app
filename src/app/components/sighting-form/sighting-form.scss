@@ -14,6 +14,20 @@ h1 {
   color: #2d5016;
 }
 
+.load-status,
+.load-error {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.load-status {
+  color: #555;
+}
+
+.load-error {
+  color: #b71c1c;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

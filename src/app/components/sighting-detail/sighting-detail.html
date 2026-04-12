@@ -38,6 +38,7 @@
 
       <nav class="actions" aria-label="Sighting actions">
         <a routerLink="/" class="btn btn-secondary">← Back to Map</a>
+        <a [routerLink]="['/sightings', s.id, 'edit']" class="btn btn-primary">Edit Sighting</a>
         <button type="button" (click)="deleteSighting()" class="btn btn-danger">
           Delete Sighting
         </button>
