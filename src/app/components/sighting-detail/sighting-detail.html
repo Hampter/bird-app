@@ -5,7 +5,9 @@
     <article class="detail-content">
       <header class="detail-header">
         <h1>{{ s.species }}</h1>
-        <time [attr.datetime]="s.sighting_date || null">{{ s.sighting_date || 'Unknown date' }}</time>
+        <time [attr.datetime]="s.sighting_date || null">{{
+          s.sighting_date || 'Unknown date'
+        }}</time>
       </header>
 
       @if (s.image_filename) {

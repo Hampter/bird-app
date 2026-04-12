@@ -9,7 +9,7 @@
         [value]="searchTerm()"
         (input)="onSearchInput($event)"
         placeholder="Species, notes, or date"
-      >
+      />
       @if (searchTerm()) {
         <button type="button" class="clear-btn" (click)="clearSearch()" aria-label="Clear search">
           Clear

@@ -1,59 +1,114 @@
-# BirdApp
+# BirdLog
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.5.
+BirdLog is a self-hosted bird sighting app with:
 
-## Development server
+- Angular frontend
+- MapLibre map for viewing/adding sightings
+- Node/Express API
+- SQLite database + image uploads
+- Docker Compose deployment
 
-To start a local development server, run:
+The SQLite DB and uploaded photos are stored in a local `data/` folder so it can be synced with Dropbox.
+
+## Features
+
+- Log sightings with species, notes, location, and photo
+- Tap/click map to set location
+- Use device GPS to fill coordinates on mobile
+- Search sightings directly on the map
+- Backlog support with **unknown date** entries
+- List and detail views for saved sightings
+
+## Tech Stack
+
+- Frontend: Angular 21, MapLibre GL
+- Backend: Express, better-sqlite3, multer
+- Database: SQLite
+- Hosting: Docker + Docker Compose
+
+## Project Structure
+
+- `src/` – Angular app
+- `server/` – Express API server
+- `data/` – SQLite DB + uploaded images (runtime volume)
+- `docker-compose.yml` – local self-host setup
+
+## Run with Docker (recommended)
+
+1. Build and start:
+
+   ```bash
+   docker compose up --build
+   ```
+
+2. Open the app at:
+   - Frontend: `http://localhost:8080`
+
+Notes:
+
+- API runs on port `3000` inside Docker and is accessed by the frontend via reverse proxy (`/api`).
+- If you need a clean rebuild:
+
+  ```bash
+  docker compose build --no-cache
+  docker compose up
+  ```
+
+## Dropbox Sync Setup
+
+BirdLog persists data in `./data` through Docker volume mapping.
+
+Options:
+
+1. Move this project inside your Dropbox folder, or
+2. Symlink `data/` to a Dropbox location.
+
+Example:
 
 ```bash
-ng serve
+ln -s ~/Dropbox/BirdLogData ./data
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Keep only one process writing the same SQLite file at a time.
 
-## Code scaffolding
+## Run in Development (without Docker)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+### Frontend
 
 ```bash
-ng generate component component-name
+npm install
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+### API
 
 ```bash
-ng generate --help
+cd server
+npm install
+npm run dev
 ```
 
-## Building
+Frontend dev server uses proxy config so `/api` points to `http://localhost:3000`.
 
-To build the project run:
+## GPS on Mobile
 
-```bash
-ng build
-```
+GPS requires secure context in browsers:
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+- ✅ `http://localhost` (local)
+- ✅ `https://your-domain`
+- ❌ plain `http://<ip-or-domain>` on most phones
 
-## Running unit tests
+For phone access on LAN/public internet, serve BirdLog over HTTPS.
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Scripts
 
-```bash
-ng test
-```
+From project root:
 
-## Running end-to-end tests
+- `npm start` – Angular dev server
+- `npm run build` – production frontend build
+- `npm test` – unit tests
 
-For end-to-end (e2e) testing, run:
+From `server/`:
 
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `npm run dev` – API with watch mode
+- `npm start` – API production start
