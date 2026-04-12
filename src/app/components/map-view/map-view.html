@@ -1,0 +1,30 @@
+<div class="map-view">
+  <section class="search-panel" aria-label="Search sightings on map">
+    <label for="map-search" class="search-label">Search sightings</label>
+    <div class="search-row">
+      <input
+        id="map-search"
+        class="search-input"
+        type="search"
+        [value]="searchTerm()"
+        (input)="onSearchInput($event)"
+        placeholder="Species, notes, or date"
+      >
+      @if (searchTerm()) {
+        <button type="button" class="clear-btn" (click)="clearSearch()" aria-label="Clear search">
+          Clear
+        </button>
+      }
+    </div>
+    <p class="search-meta" aria-live="polite">
+      @if (loading()) {
+        Loading sightings…
+      } @else {
+        Showing {{ resultCount() }} sighting(s)
+      }
+    </p>
+  </section>
+
+  <div #mapContainer class="map" role="application" aria-label="Bird sightings map"></div>
+  <a routerLink="/add" class="fab" aria-label="Add new bird sighting">+</a>
+</div>

@@ -1,0 +1,94 @@
+import {
+  Component,
+  ChangeDetectionStrategy,
+  signal,
+  inject,
+  input,
+  effect,
+  untracked,
+  ElementRef,
+  viewChild,
+  OnDestroy,
+} from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { Map, Marker } from 'maplibre-gl';
+import { SightingService } from '../../services/sighting.service';
+import { Sighting } from '../../models/sighting.model';
+import { MAP_STYLE } from '../../shared/map.config';
+
+@Component({
+  selector: 'app-sighting-detail',
+  imports: [RouterLink],
+  templateUrl: './sighting-detail.html',
+  styleUrl: './sighting-detail.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class SightingDetailComponent implements OnDestroy {
+  private readonly sightingService = inject(SightingService);
+  private readonly router = inject(Router);
+
+  readonly id = input.required<string>();
+
+  protected readonly sighting = signal<Sighting | null>(null);
+  protected readonly loading = signal(true);
+
+  private map: Map | null = null;
+  readonly mapContainer = viewChild<ElementRef>('detailMap');
+
+  constructor() {
+    effect(() => {
+      const id = parseInt(this.id(), 10);
+      untracked(() => {
+        if (!isNaN(id)) {
+          this.loadSighting(id);
+        }
+      });
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.map?.remove();
+  }
+
+  private loadSighting(id: number): void {
+    this.sightingService.getById(id).subscribe({
+      next: (s) => {
+        this.sighting.set(s);
+        this.loading.set(false);
+        // Wait for Angular to render the @if block before initializing the map
+        setTimeout(() => this.initMap(s));
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private initMap(sighting: Sighting): void {
+    const container = this.mapContainer()?.nativeElement;
+    if (!container) return;
+
+    this.map = new Map({
+      container,
+      style: MAP_STYLE,
+      center: [sighting.longitude, sighting.latitude],
+      zoom: 12,
+      interactive: false,
+    });
+
+    new Marker({ color: '#4a7c59' })
+      .setLngLat([sighting.longitude, sighting.latitude])
+      .addTo(this.map);
+  }
+
+  protected getImageUrl(filename: string): string {
+    return this.sightingService.getImageUrl(filename);
+  }
+
+  protected deleteSighting(): void {
+    const sighting = this.sighting();
+    if (!sighting || !confirm('Are you sure you want to delete this sighting?')) return;
+
+    this.sightingService.delete(sighting.id).subscribe(() => {
+      this.router.navigate(['/']);
+    });
+  }
+}

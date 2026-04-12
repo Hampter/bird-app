@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# BirdLog – Docker Compose
+#
+# The ./data directory stores the SQLite database and uploaded images.
+# Point this at (or symlink into) your Dropbox folder so everything
+# syncs automatically.
+# ---------------------------------------------------------------------------
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/app/data # ← sync this folder with Dropbox
+    environment:
+      - PORT=3000
+      - DATA_DIR=/app/data

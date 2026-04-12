@@ -1,0 +1,47 @@
+<div class="detail-page">
+  @if (loading()) {
+    <p class="loading">Loading sighting…</p>
+  } @else if (sighting(); as s) {
+    <article class="detail-content">
+      <header class="detail-header">
+        <h1>{{ s.species }}</h1>
+        <time [attr.datetime]="s.sighting_date || null">{{ s.sighting_date || 'Unknown date' }}</time>
+      </header>
+
+      @if (s.image_filename) {
+        <img
+          [src]="getImageUrl(s.image_filename)"
+          [alt]="'Photo of ' + s.species"
+          class="sighting-image"
+        />
+      }
+
+      @if (s.description) {
+        <section class="description">
+          <h2>Notes</h2>
+          <p>{{ s.description }}</p>
+        </section>
+      }
+
+      <section class="location-section">
+        <h2>Location</h2>
+        <div
+          #detailMap
+          class="detail-map"
+          role="img"
+          [attr.aria-label]="'Map showing location of ' + s.species + ' sighting'"
+        ></div>
+        <p class="coords">📍 {{ s.latitude }}, {{ s.longitude }}</p>
+      </section>
+
+      <nav class="actions" aria-label="Sighting actions">
+        <a routerLink="/" class="btn btn-secondary">← Back to Map</a>
+        <button type="button" (click)="deleteSighting()" class="btn btn-danger">
+          Delete Sighting
+        </button>
+      </nav>
+    </article>
+  } @else {
+    <p class="not-found">Sighting not found.</p>
+  }
+</div>

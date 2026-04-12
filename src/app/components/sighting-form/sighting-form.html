@@ -1,0 +1,98 @@
+<div class="form-page">
+  <h1>Log a Bird Sighting</h1>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="species">Species <span class="required">*</span></label>
+        <input
+          id="species"
+          formControlName="species"
+          type="text"
+          placeholder="e.g., American Robin"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="sighting_date">Date <span class="required">*</span></label>
+        <input
+          id="sighting_date"
+          formControlName="sighting_date"
+          type="date"
+          [disabled]="form.controls.unknown_date.value"
+        />
+        <label class="unknown-date-toggle" for="unknown_date">
+          <input
+            id="unknown_date"
+            type="checkbox"
+            [checked]="form.controls.unknown_date.value"
+            (change)="onUnknownDateToggle($event)"
+          />
+          Date unknown (backlog entry)
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description">Notes</label>
+      <textarea
+        id="description"
+        formControlName="description"
+        rows="3"
+        placeholder="Behavior, habitat, weather conditions..."
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <div class="location-header">
+        <label id="location-label">
+          Location <span class="required">*</span>
+          <span class="hint">(tap map or use GPS)</span>
+        </label>
+        <button
+          type="button"
+          class="btn btn-secondary gps-btn"
+          (click)="useCurrentLocation()"
+          [disabled]="locating()"
+        >
+          @if (locating()) {
+            Getting GPS…
+          } @else {
+            Use Current Location
+          }
+        </button>
+      </div>
+      <div
+        #locationMap
+        class="location-map"
+        role="application"
+        aria-labelledby="location-label"
+      ></div>
+      @if (locationError(); as error) {
+        <p class="location-error" role="status" aria-live="polite">{{ error }}</p>
+      }
+      @if (coordsDisplay(); as display) {
+        <p class="coords">📍 {{ display }}</p>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="image">Photo</label>
+      <input id="image" type="file" accept="image/*" (change)="onFileSelected($event)" />
+      @if (imagePreview(); as preview) {
+        <img [src]="preview" alt="Selected photo preview" class="image-preview" />
+      }
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="form.invalid || submitting()">
+        @if (submitting()) {
+          Saving...
+        } @else {
+          Save Sighting
+        }
+      </button>
+    </div>
+  </form>
+</div>

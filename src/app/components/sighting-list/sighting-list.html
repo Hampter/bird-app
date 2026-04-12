@@ -1,0 +1,35 @@
+<div class="list-page">
+  <header class="list-header">
+    <h1>Bird Sightings</h1>
+    <a routerLink="/add" class="btn btn-primary">+ Add Sighting</a>
+  </header>
+
+  @if (loading()) {
+    <p class="loading">Loading sightings…</p>
+  } @else if (sightings().length === 0) {
+    <div class="empty-state">
+      <p>No sightings recorded yet.</p>
+      <a routerLink="/add" class="btn btn-primary">Log your first bird sighting</a>
+    </div>
+  } @else {
+    <div class="sighting-grid" role="list">
+      @for (sighting of sightings(); track sighting.id) {
+        <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+          @if (sighting.image_filename) {
+            <img
+              [src]="getImageUrl(sighting.image_filename)"
+              [alt]="'Photo of ' + sighting.species"
+              class="card-image"
+            />
+          } @else {
+            <div class="card-image placeholder" aria-hidden="true">🐦</div>
+          }
+          <div class="card-body">
+            <h2>{{ sighting.species }}</h2>
+            <time [attr.datetime]="sighting.sighting_date || null">{{ sighting.sighting_date || 'Unknown date' }}</time>
+          </div>
+        </a>
+      }
+    </div>
+  }
+</div>

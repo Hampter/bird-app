@@ -1,0 +1,6 @@
+node_modules
+dist
+server/node_modules
+data
+.git
+.angular
