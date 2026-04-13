@@ -4,6 +4,13 @@ import { RouterLink } from '@angular/router';
 import { SightingService } from '../../services/sighting.service';
 import { Sighting } from '../../models/sighting.model';
 
+type SightingGroup = {
+  id: string;
+  title: string;
+  emptyText: string;
+  sightings: Sighting[];
+};
+
 @Component({
   selector: 'app-sighting-list',
   imports: [RouterLink, DatePipe],
@@ -28,20 +35,44 @@ export class SightingListComponent {
       return b.id - a.id;
     }),
   );
+  protected readonly groupedSightings = computed<SightingGroup[]>(() => {
+    const sightings = this.sortedSightings();
 
-  protected readonly lifeListerSightings = computed(() =>
-    this.sortedSightings().filter((sighting) => Boolean(sighting.life_lister)),
-  );
-
-  protected readonly photoSightings = computed(() =>
-    this.sortedSightings().filter(
-      (sighting) => !sighting.life_lister && Boolean(sighting.photo_only),
-    ),
-  );
-
-  protected readonly otherSightings = computed(() =>
-    this.sortedSightings().filter((sighting) => !sighting.life_lister && !sighting.photo_only),
-  );
+    return [
+      {
+        id: 'life-photo',
+        title: 'Life Lister + Photo',
+        emptyText: 'No sightings tagged as both life lister and photo yet.',
+        sightings: sightings.filter(
+          (sighting) => Boolean(sighting.life_lister) && Boolean(sighting.photo_only),
+        ),
+      },
+      {
+        id: 'life-lister',
+        title: 'Life Listers',
+        emptyText: 'No life listers yet.',
+        sightings: sightings.filter(
+          (sighting) => Boolean(sighting.life_lister) && !Boolean(sighting.photo_only),
+        ),
+      },
+      {
+        id: 'photo',
+        title: 'Photo',
+        emptyText: 'No photo sightings yet.',
+        sightings: sightings.filter(
+          (sighting) => !Boolean(sighting.life_lister) && Boolean(sighting.photo_only),
+        ),
+      },
+      {
+        id: 'other',
+        title: 'Other Sightings',
+        emptyText: 'No other sightings yet.',
+        sightings: sightings.filter(
+          (sighting) => !Boolean(sighting.life_lister) && !Boolean(sighting.photo_only),
+        ),
+      },
+    ];
+  });
 
   constructor() {
     this.sightingService.getAll().subscribe({
