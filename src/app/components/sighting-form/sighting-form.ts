@@ -64,6 +64,7 @@ export class SightingFormComponent implements OnDestroy {
   protected readonly form = new FormGroup({
     species: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     description: new FormControl('', { nonNullable: true }),
+    sex: new FormControl<'male' | 'female' | 'both' | ''>('', { nonNullable: true }),
     life_lister: new FormControl(false, { nonNullable: true }),
     photo_only: new FormControl(false, { nonNullable: true }),
     sighting_date: new FormControl<string | null>(new Date().toISOString().split('T')[0], {
@@ -185,6 +186,7 @@ export class SightingFormComponent implements OnDestroy {
         this.form.patchValue({
           species: sighting.species,
           description: sighting.description ?? '',
+          sex: sighting.sex ?? '',
           life_lister: sighting.life_lister === 1,
           photo_only: sighting.photo_only === 1,
           sighting_date: sighting.sighting_date,
@@ -318,6 +320,7 @@ export class SightingFormComponent implements OnDestroy {
     const {
       species,
       description,
+      sex,
       life_lister,
       photo_only,
       sighting_date,
@@ -327,6 +330,7 @@ export class SightingFormComponent implements OnDestroy {
     } = this.form.getRawValue();
     formData.append('species', species);
     formData.append('description', description);
+    formData.append('sex', sex);
     formData.append('life_lister', String(life_lister));
     formData.append('photo_only', String(photo_only));
     formData.append('unknown_date', String(unknown_date));

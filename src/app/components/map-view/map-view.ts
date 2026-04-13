@@ -304,6 +304,13 @@ export class MapViewComponent implements OnDestroy {
       date.textContent = sighting.sighting_date ?? 'Unknown date';
       popupContent.appendChild(date);
 
+      if (sighting.sex) {
+        popupContent.appendChild(document.createElement('br'));
+        const sex = document.createElement('small');
+        sex.textContent = sighting.sex === 'male' ? 'Male' : sighting.sex === 'female' ? 'Female' : 'Both';
+        popupContent.appendChild(sex);
+      }
+
       if (sighting.life_lister || sighting.photo_only) {
         popupContent.appendChild(document.createElement('br'));
         const categories = document.createElement('small');

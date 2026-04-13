@@ -27,6 +27,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     species TEXT NOT NULL,
     description TEXT,
+    sex TEXT,
     life_lister INTEGER NOT NULL DEFAULT 0,
     photo_only INTEGER NOT NULL DEFAULT 0,
     latitude REAL NOT NULL,
@@ -50,6 +51,7 @@ if (sightingDateInfo && sightingDateInfo.notnull === 1) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       species TEXT NOT NULL,
       description TEXT,
+      sex TEXT,
       life_lister INTEGER NOT NULL DEFAULT 0,
       photo_only INTEGER NOT NULL DEFAULT 0,
       latitude REAL NOT NULL,
@@ -58,8 +60,8 @@ if (sightingDateInfo && sightingDateInfo.notnull === 1) {
       sighting_date TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
-    INSERT INTO sightings_new (id, species, description, life_lister, photo_only, latitude, longitude, image_filename, sighting_date, created_at)
-    SELECT id, species, description, 0, 0, latitude, longitude, image_filename, NULLIF(sighting_date, ''), created_at
+    INSERT INTO sightings_new (id, species, description, sex, life_lister, photo_only, latitude, longitude, image_filename, sighting_date, created_at)
+    SELECT id, species, description, NULL, 0, 0, latitude, longitude, image_filename, NULLIF(sighting_date, ''), created_at
     FROM sightings;
     DROP TABLE sightings;
     ALTER TABLE sightings_new RENAME TO sightings;
@@ -68,9 +70,13 @@ if (sightingDateInfo && sightingDateInfo.notnull === 1) {
 }
 
 const sightingColumns = db.prepare("PRAGMA table_info('sightings')").all();
+const hasSex = sightingColumns.some((column) => column.name === 'sex');
 const hasLifeLister = sightingColumns.some((column) => column.name === 'life_lister');
 const hasPhotoOnly = sightingColumns.some((column) => column.name === 'photo_only');
 
+if (!hasSex) {
+  db.exec('ALTER TABLE sightings ADD COLUMN sex TEXT');
+}
 if (!hasLifeLister) {
   db.exec('ALTER TABLE sightings ADD COLUMN life_lister INTEGER NOT NULL DEFAULT 0');
 }
@@ -131,6 +137,7 @@ app.post('/api/sightings', upload.single('image'), (req, res) => {
   const {
     species,
     description,
+    sex,
     life_lister,
     photo_only,
     latitude,
@@ -153,17 +160,19 @@ app.post('/api/sightings', upload.single('image'), (req, res) => {
   }
 
   const image_filename = req.file ? req.file.filename : null;
+  const normalizedSex = sex === 'male' || sex === 'female' || sex === 'both' ? sex : null;
   const normalizedLifeLister = life_lister === true || life_lister === 'true' ? 1 : 0;
   const normalizedPhotoOnly = photo_only === true || photo_only === 'true' ? 1 : 0;
 
   const stmt = db.prepare(`
-    INSERT INTO sightings (species, description, life_lister, photo_only, latitude, longitude, image_filename, sighting_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sightings (species, description, sex, life_lister, photo_only, latitude, longitude, image_filename, sighting_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
     species,
     description || null,
+    normalizedSex,
     normalizedLifeLister,
     normalizedPhotoOnly,
     parseFloat(latitude),
@@ -189,6 +198,7 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
   const {
     species,
     description,
+    sex,
     life_lister,
     photo_only,
     latitude,
@@ -203,6 +213,12 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
     : sighting_date !== undefined
       ? sighting_date || null
       : existing.sighting_date;
+  const normalizedSex =
+    sex !== undefined
+      ? sex === 'male' || sex === 'female' || sex === 'both'
+        ? sex
+        : null
+      : existing.sex;
   const normalizedLifeLister =
     life_lister !== undefined
       ? life_lister === true || life_lister === 'true'
@@ -227,12 +243,13 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
 
   db.prepare(`
     UPDATE sightings
-       SET species = ?, description = ?, life_lister = ?, photo_only = ?, latitude = ?, longitude = ?,
+       SET species = ?, description = ?, sex = ?, life_lister = ?, photo_only = ?, latitude = ?, longitude = ?,
            image_filename = ?, sighting_date = ?
      WHERE id = ?
   `).run(
     species || existing.species,
     description !== undefined ? description : existing.description,
+    normalizedSex,
     normalizedLifeLister,
     normalizedPhotoOnly,
     latitude ? parseFloat(latitude) : existing.latitude,

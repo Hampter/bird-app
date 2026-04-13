@@ -37,6 +37,7 @@
           }
           <div class="card-body">
             <h2>{{ sighting.species }}</h2>
+            <p class="sex-label">{{ sighting.sex === 'male' ? 'Male' : sighting.sex === 'female' ? 'Female' : sighting.sex === 'both' ? 'Both' : 'Unknown' }}</p>
             @if (sighting.sighting_date) {
               <time [attr.datetime]="sighting.sighting_date">{{
                 sighting.sighting_date | date: 'EEE, MMM d, y'
@@ -84,6 +85,7 @@
                 }
                 <div class="card-body">
                   <h2>{{ sighting.species }}</h2>
+                  <p class="sex-label">{{ sighting.sex === 'male' ? 'Male' : sighting.sex === 'female' ? 'Female' : sighting.sex === 'both' ? 'Both' : 'Unknown' }}</p>
                   @if (sighting.sighting_date) {
                     <time [attr.datetime]="sighting.sighting_date">{{
                       sighting.sighting_date | date: 'EEE, MMM d, y'

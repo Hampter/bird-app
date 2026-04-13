@@ -5,6 +5,9 @@
     <article class="detail-content">
       <header class="detail-header">
         <h1>{{ s.species }}</h1>
+        @if (s.sex) {
+          <p class="sex-label">{{ s.sex === 'male' ? 'Male' : s.sex === 'female' ? 'Female' : 'Both' }}</p>
+        }
         <time [attr.datetime]="s.sighting_date || null">{{
           s.sighting_date || 'Unknown date'
         }}</time>

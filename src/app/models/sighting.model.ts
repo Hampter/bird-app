@@ -1,7 +1,10 @@
+export type SightingSex = 'male' | 'female' | 'both' | null;
+
 export interface Sighting {
   id: number;
   species: string;
   description: string | null;
+  sex: SightingSex;
   life_lister: number;
   photo_only: number;
   latitude: number;
