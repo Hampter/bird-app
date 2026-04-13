@@ -8,6 +8,7 @@ type SightingGroup = {
   id: string;
   title: string;
   emptyText: string;
+  showImages: boolean;
   sightings: Sighting[];
 };
 
@@ -40,33 +41,24 @@ export class SightingListComponent {
 
     return [
       {
-        id: 'life-photo',
-        title: 'Life Lister + Photo',
-        emptyText: 'No sightings tagged as both life lister and photo yet.',
-        sightings: sightings.filter(
-          (sighting) => Boolean(sighting.life_lister) && Boolean(sighting.photo_only),
-        ),
+        id: 'photo',
+        title: 'Photos',
+        emptyText: 'No photo sightings yet.',
+        showImages: true,
+        sightings: sightings.filter((sighting) => Boolean(sighting.photo_only)),
       },
       {
         id: 'life-lister',
         title: 'Life Listers',
         emptyText: 'No life listers yet.',
-        sightings: sightings.filter(
-          (sighting) => Boolean(sighting.life_lister) && !Boolean(sighting.photo_only),
-        ),
-      },
-      {
-        id: 'photo',
-        title: 'Photo',
-        emptyText: 'No photo sightings yet.',
-        sightings: sightings.filter(
-          (sighting) => !Boolean(sighting.life_lister) && Boolean(sighting.photo_only),
-        ),
+        showImages: false,
+        sightings: sightings.filter((sighting) => Boolean(sighting.life_lister)),
       },
       {
         id: 'other',
         title: 'Other Sightings',
         emptyText: 'No other sightings yet.',
+        showImages: true,
         sightings: sightings.filter(
           (sighting) => !Boolean(sighting.life_lister) && !Boolean(sighting.photo_only),
         ),

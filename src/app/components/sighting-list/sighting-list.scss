@@ -167,6 +167,11 @@
         0 4px 24px rgba(77, 209, 168, 0.14);
     }
   }
+
+  &.text-only {
+    display: block;
+    min-height: 0;
+  }
 }
 
 .card-image {
@@ -238,6 +243,10 @@
     font-size: 0.85rem;
     color: var(--text-1);
   }
+}
+
+.text-only .card-body {
+  padding: 0.95rem 1rem;
 }
 
 .category-badges {
