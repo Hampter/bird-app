@@ -25,7 +25,7 @@
   } @else if (!splitByCategory()) {
     <div class="sighting-grid" role="list">
       @for (sighting of sortedSightings(); track sighting.id) {
-        <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+        <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" [class.has-photo]="sighting.image_filename" role="listitem">
           @if (sighting.image_filename) {
             <img
               [src]="getImageUrl(sighting.image_filename)"
@@ -33,7 +33,9 @@
               class="card-image"
             />
           } @else {
-            <div class="card-image placeholder" aria-hidden="true">🐦</div>
+            <div class="card-image placeholder" aria-hidden="true">
+              <span class="placeholder-initial">{{ sighting.species.charAt(0) }}</span>
+            </div>
           }
           <div class="card-body">
             <h2>{{ sighting.species }}</h2>
@@ -73,7 +75,7 @@
         } @else {
           <div class="sighting-grid" role="list">
             @for (sighting of group.sightings; track sighting.id) {
-              <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+              <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" [class.has-photo]="sighting.image_filename" role="listitem">
                 @if (sighting.image_filename) {
                   <img
                     [src]="getImageUrl(sighting.image_filename)"
@@ -81,7 +83,9 @@
                     class="card-image"
                   />
                 } @else {
-                  <div class="card-image placeholder" aria-hidden="true">🐦</div>
+                  <div class="card-image placeholder" aria-hidden="true">
+                    <span class="placeholder-initial">{{ sighting.species.charAt(0) }}</span>
+                  </div>
                 }
                 <div class="card-body">
                   <h2>{{ sighting.species }}</h2>
