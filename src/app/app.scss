@@ -1,7 +1,9 @@
 :host {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  background: linear-gradient(160deg, var(--bg-0), var(--bg-1));
 }
 
 .app-nav {
@@ -98,4 +100,5 @@
 .app-content {
   flex: 1;
   overflow: auto;
+  background: transparent;
 }

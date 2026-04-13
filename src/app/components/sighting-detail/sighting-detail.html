@@ -33,7 +33,11 @@
         } @else if (birdInfo(); as info) {
           <div class="bird-info-content">
             @if (info.thumbnail) {
-              <img [src]="info.thumbnail" [alt]="info.title + ' reference image'" class="bird-thumb" />
+              <img
+                [src]="info.thumbnail"
+                [alt]="info.title + ' reference image'"
+                class="bird-thumb"
+              />
             }
             <div class="bird-info-main">
               <div class="bird-text">
@@ -44,7 +48,12 @@
                 <p class="bird-summary">{{ info.summary }}</p>
 
                 @if (info.sourceUrl) {
-                  <a [href]="info.sourceUrl" target="_blank" rel="noopener noreferrer" class="bird-link">
+                  <a
+                    [href]="info.sourceUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="bird-link"
+                  >
                     Read more
                   </a>
                 }

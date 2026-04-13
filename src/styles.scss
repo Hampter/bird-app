@@ -28,8 +28,10 @@
 html,
 body {
   height: 100%;
+  min-height: 100dvh;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
   color: var(--text-0);
+  background-color: var(--bg-0);
   background: linear-gradient(160deg, var(--bg-0), var(--bg-1));
 }
 
