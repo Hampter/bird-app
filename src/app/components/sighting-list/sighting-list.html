@@ -1,7 +1,18 @@
 <div class="list-page">
   <header class="list-header">
     <h1>Bird Sightings</h1>
-    <a routerLink="/add" class="btn btn-primary">+ Add Sighting</a>
+    <div class="list-controls">
+      <button
+        type="button"
+        class="sort-toggle"
+        [class.active]="splitByCategory()"
+        (click)="toggleCategorySplit()"
+        [attr.aria-pressed]="splitByCategory()"
+      >
+        Split by category
+      </button>
+      <a routerLink="/add" class="btn btn-primary">+ Add Sighting</a>
+    </div>
   </header>
 
   @if (loading()) {
@@ -11,9 +22,9 @@
       <p>No sightings recorded yet.</p>
       <a routerLink="/add" class="btn btn-primary">Log your first bird sighting</a>
     </div>
-  } @else {
+  } @else if (!splitByCategory()) {
     <div class="sighting-grid" role="list">
-      @for (sighting of sightings(); track sighting.id) {
+      @for (sighting of sortedSightings(); track sighting.id) {
         <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
           @if (sighting.image_filename) {
             <img
@@ -26,12 +37,151 @@
           }
           <div class="card-body">
             <h2>{{ sighting.species }}</h2>
-            <time [attr.datetime]="sighting.sighting_date || null">{{
-              sighting.sighting_date || 'Unknown date'
-            }}</time>
+            @if (sighting.sighting_date) {
+              <time [attr.datetime]="sighting.sighting_date">{{
+                sighting.sighting_date | date: 'EEE, MMM d, y'
+              }}</time>
+            } @else {
+              <time [attr.datetime]="sighting.created_at"
+                >Added {{ sighting.created_at | date: 'MMM d, y' }}</time
+              >
+            }
+            @if (sighting.life_lister || sighting.photo_only) {
+              <div class="category-badges" aria-label="Sighting categories">
+                @if (sighting.life_lister) {
+                  <span class="category-badge life">Life lister</span>
+                }
+                @if (sighting.photo_only) {
+                  <span class="category-badge photo">Photo</span>
+                }
+              </div>
+            }
           </div>
         </a>
       }
     </div>
+  } @else {
+    <section class="category-section" aria-labelledby="life-lister-section">
+      <div class="section-header">
+        <h2 id="life-lister-section">Life Listers</h2>
+        <span class="section-count">{{ lifeListerSightings().length }}</span>
+      </div>
+      @if (lifeListerSightings().length === 0) {
+        <p class="section-empty">No life listers yet.</p>
+      } @else {
+        <div class="sighting-grid" role="list">
+          @for (sighting of lifeListerSightings(); track sighting.id) {
+            <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+              @if (sighting.image_filename) {
+                <img
+                  [src]="getImageUrl(sighting.image_filename)"
+                  [alt]="'Photo of ' + sighting.species"
+                  class="card-image"
+                />
+              } @else {
+                <div class="card-image placeholder" aria-hidden="true">🐦</div>
+              }
+              <div class="card-body">
+                <h2>{{ sighting.species }}</h2>
+                @if (sighting.sighting_date) {
+                  <time [attr.datetime]="sighting.sighting_date">{{
+                    sighting.sighting_date | date: 'EEE, MMM d, y'
+                  }}</time>
+                } @else {
+                  <time [attr.datetime]="sighting.created_at"
+                    >Added {{ sighting.created_at | date: 'MMM d, y' }}</time
+                  >
+                }
+                <div class="category-badges" aria-label="Sighting categories">
+                  <span class="category-badge life">Life lister</span>
+                  @if (sighting.photo_only) {
+                    <span class="category-badge photo">Photo</span>
+                  }
+                </div>
+              </div>
+            </a>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="category-section" aria-labelledby="photo-section">
+      <div class="section-header">
+        <h2 id="photo-section">Photo</h2>
+        <span class="section-count">{{ photoSightings().length }}</span>
+      </div>
+      @if (photoSightings().length === 0) {
+        <p class="section-empty">No photo sightings yet.</p>
+      } @else {
+        <div class="sighting-grid" role="list">
+          @for (sighting of photoSightings(); track sighting.id) {
+            <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+              @if (sighting.image_filename) {
+                <img
+                  [src]="getImageUrl(sighting.image_filename)"
+                  [alt]="'Photo of ' + sighting.species"
+                  class="card-image"
+                />
+              } @else {
+                <div class="card-image placeholder" aria-hidden="true">🐦</div>
+              }
+              <div class="card-body">
+                <h2>{{ sighting.species }}</h2>
+                @if (sighting.sighting_date) {
+                  <time [attr.datetime]="sighting.sighting_date">{{
+                    sighting.sighting_date | date: 'EEE, MMM d, y'
+                  }}</time>
+                } @else {
+                  <time [attr.datetime]="sighting.created_at"
+                    >Added {{ sighting.created_at | date: 'MMM d, y' }}</time
+                  >
+                }
+                <div class="category-badges" aria-label="Sighting categories">
+                  <span class="category-badge photo">Photo</span>
+                </div>
+              </div>
+            </a>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="category-section" aria-labelledby="other-section">
+      <div class="section-header">
+        <h2 id="other-section">Other Sightings</h2>
+        <span class="section-count">{{ otherSightings().length }}</span>
+      </div>
+      @if (otherSightings().length === 0) {
+        <p class="section-empty">No other sightings yet.</p>
+      } @else {
+        <div class="sighting-grid" role="list">
+          @for (sighting of otherSightings(); track sighting.id) {
+            <a [routerLink]="['/sightings', sighting.id]" class="sighting-card" role="listitem">
+              @if (sighting.image_filename) {
+                <img
+                  [src]="getImageUrl(sighting.image_filename)"
+                  [alt]="'Photo of ' + sighting.species"
+                  class="card-image"
+                />
+              } @else {
+                <div class="card-image placeholder" aria-hidden="true">🐦</div>
+              }
+              <div class="card-body">
+                <h2>{{ sighting.species }}</h2>
+                @if (sighting.sighting_date) {
+                  <time [attr.datetime]="sighting.sighting_date">{{
+                    sighting.sighting_date | date: 'EEE, MMM d, y'
+                  }}</time>
+                } @else {
+                  <time [attr.datetime]="sighting.created_at"
+                    >Added {{ sighting.created_at | date: 'MMM d, y' }}</time
+                  >
+                }
+              </div>
+            </a>
+          }
+        </div>
+      }
+    </section>
   }
 </div>

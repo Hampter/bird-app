@@ -89,6 +89,20 @@
     </div>
 
     <div class="form-group">
+      <label>Categories</label>
+      <div class="category-grid" role="group" aria-label="Sighting categories">
+        <label class="category-toggle" for="life_lister">
+          <input id="life_lister" type="checkbox" formControlName="life_lister" />
+          First life lister
+        </label>
+        <label class="category-toggle" for="photo_only">
+          <input id="photo_only" type="checkbox" formControlName="photo_only" />
+          Photo
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
       <div class="location-header">
         <label id="location-label">
           Location <span class="required">*</span>

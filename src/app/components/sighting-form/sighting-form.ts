@@ -64,6 +64,8 @@ export class SightingFormComponent implements OnDestroy {
   protected readonly form = new FormGroup({
     species: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     description: new FormControl('', { nonNullable: true }),
+    life_lister: new FormControl(false, { nonNullable: true }),
+    photo_only: new FormControl(false, { nonNullable: true }),
     sighting_date: new FormControl<string | null>(new Date().toISOString().split('T')[0], {
       validators: [Validators.required],
     }),
@@ -183,6 +185,8 @@ export class SightingFormComponent implements OnDestroy {
         this.form.patchValue({
           species: sighting.species,
           description: sighting.description ?? '',
+          life_lister: sighting.life_lister === 1,
+          photo_only: sighting.photo_only === 1,
           sighting_date: sighting.sighting_date,
           unknown_date: unknownDate,
           latitude: sighting.latitude,
@@ -311,10 +315,20 @@ export class SightingFormComponent implements OnDestroy {
     this.submitting.set(true);
 
     const formData = new FormData();
-    const { species, description, sighting_date, unknown_date, latitude, longitude } =
-      this.form.getRawValue();
+    const {
+      species,
+      description,
+      life_lister,
+      photo_only,
+      sighting_date,
+      unknown_date,
+      latitude,
+      longitude,
+    } = this.form.getRawValue();
     formData.append('species', species);
     formData.append('description', description);
+    formData.append('life_lister', String(life_lister));
+    formData.append('photo_only', String(photo_only));
     formData.append('unknown_date', String(unknown_date));
     if (!unknown_date && sighting_date) {
       formData.append('sighting_date', sighting_date);

@@ -27,6 +27,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     species TEXT NOT NULL,
     description TEXT,
+    life_lister INTEGER NOT NULL DEFAULT 0,
+    photo_only INTEGER NOT NULL DEFAULT 0,
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
     image_filename TEXT,
@@ -48,19 +50,32 @@ if (sightingDateInfo && sightingDateInfo.notnull === 1) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       species TEXT NOT NULL,
       description TEXT,
+      life_lister INTEGER NOT NULL DEFAULT 0,
+      photo_only INTEGER NOT NULL DEFAULT 0,
       latitude REAL NOT NULL,
       longitude REAL NOT NULL,
       image_filename TEXT,
       sighting_date TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
-    INSERT INTO sightings_new (id, species, description, latitude, longitude, image_filename, sighting_date, created_at)
-    SELECT id, species, description, latitude, longitude, image_filename, NULLIF(sighting_date, ''), created_at
+    INSERT INTO sightings_new (id, species, description, life_lister, photo_only, latitude, longitude, image_filename, sighting_date, created_at)
+    SELECT id, species, description, 0, 0, latitude, longitude, image_filename, NULLIF(sighting_date, ''), created_at
     FROM sightings;
     DROP TABLE sightings;
     ALTER TABLE sightings_new RENAME TO sightings;
     COMMIT;
   `);
+}
+
+const sightingColumns = db.prepare("PRAGMA table_info('sightings')").all();
+const hasLifeLister = sightingColumns.some((column) => column.name === 'life_lister');
+const hasPhotoOnly = sightingColumns.some((column) => column.name === 'photo_only');
+
+if (!hasLifeLister) {
+  db.exec('ALTER TABLE sightings ADD COLUMN life_lister INTEGER NOT NULL DEFAULT 0');
+}
+if (!hasPhotoOnly) {
+  db.exec('ALTER TABLE sightings ADD COLUMN photo_only INTEGER NOT NULL DEFAULT 0');
 }
 
 // Middleware
@@ -113,7 +128,16 @@ app.get('/api/sightings/:id', (req, res) => {
 
 // POST /api/sightings – create a new sighting (multipart form)
 app.post('/api/sightings', upload.single('image'), (req, res) => {
-  const { species, description, latitude, longitude, sighting_date, unknown_date } = req.body;
+  const {
+    species,
+    description,
+    life_lister,
+    photo_only,
+    latitude,
+    longitude,
+    sighting_date,
+    unknown_date,
+  } = req.body;
 
   if (!species || !latitude || !longitude) {
     return res
@@ -129,15 +153,19 @@ app.post('/api/sightings', upload.single('image'), (req, res) => {
   }
 
   const image_filename = req.file ? req.file.filename : null;
+  const normalizedLifeLister = life_lister === true || life_lister === 'true' ? 1 : 0;
+  const normalizedPhotoOnly = photo_only === true || photo_only === 'true' ? 1 : 0;
 
   const stmt = db.prepare(`
-    INSERT INTO sightings (species, description, latitude, longitude, image_filename, sighting_date)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO sightings (species, description, life_lister, photo_only, latitude, longitude, image_filename, sighting_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
     species,
     description || null,
+    normalizedLifeLister,
+    normalizedPhotoOnly,
     parseFloat(latitude),
     parseFloat(longitude),
     image_filename,
@@ -158,7 +186,16 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
     .get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Sighting not found' });
 
-  const { species, description, latitude, longitude, sighting_date, unknown_date } = req.body;
+  const {
+    species,
+    description,
+    life_lister,
+    photo_only,
+    latitude,
+    longitude,
+    sighting_date,
+    unknown_date,
+  } = req.body;
   let image_filename = existing.image_filename;
   const isUnknownDate = unknown_date === true || unknown_date === 'true';
   const normalizedSightingDate = isUnknownDate
@@ -166,6 +203,18 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
     : sighting_date !== undefined
       ? sighting_date || null
       : existing.sighting_date;
+  const normalizedLifeLister =
+    life_lister !== undefined
+      ? life_lister === true || life_lister === 'true'
+        ? 1
+        : 0
+      : existing.life_lister;
+  const normalizedPhotoOnly =
+    photo_only !== undefined
+      ? photo_only === true || photo_only === 'true'
+        ? 1
+        : 0
+      : existing.photo_only;
 
   if (req.file) {
     // Remove old image when a new one is uploaded
@@ -178,12 +227,14 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
 
   db.prepare(`
     UPDATE sightings
-       SET species = ?, description = ?, latitude = ?, longitude = ?,
+       SET species = ?, description = ?, life_lister = ?, photo_only = ?, latitude = ?, longitude = ?,
            image_filename = ?, sighting_date = ?
      WHERE id = ?
   `).run(
     species || existing.species,
     description !== undefined ? description : existing.description,
+    normalizedLifeLister,
+    normalizedPhotoOnly,
     latitude ? parseFloat(latitude) : existing.latitude,
     longitude ? parseFloat(longitude) : existing.longitude,
     image_filename,

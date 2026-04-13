@@ -8,6 +8,16 @@
         <time [attr.datetime]="s.sighting_date || null">{{
           s.sighting_date || 'Unknown date'
         }}</time>
+        @if (s.life_lister || s.photo_only) {
+          <div class="category-badges" aria-label="Sighting categories">
+            @if (s.life_lister) {
+              <span class="category-badge life">Life lister</span>
+            }
+            @if (s.photo_only) {
+              <span class="category-badge photo">Photo</span>
+            }
+          </div>
+        }
       </header>
 
       @if (s.image_filename) {

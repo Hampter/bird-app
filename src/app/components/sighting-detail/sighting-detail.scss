@@ -42,6 +42,37 @@
   }
 }
 
+.category-badges {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+
+  &.life {
+    color: #b9f7dc;
+    background: rgba(64, 158, 119, 0.2);
+    border-color: rgba(120, 206, 169, 0.45);
+  }
+
+  &.photo {
+    color: #d1e5ff;
+    background: rgba(52, 95, 145, 0.26);
+    border-color: rgba(121, 161, 214, 0.45);
+  }
+}
+
 .sighting-image {
   width: 100%;
   max-height: 500px;

@@ -4,7 +4,7 @@
 
 .list-page {
   max-width: 960px;
-  margin: 0 auto;
+  margin: 2rem auto 0 auto;
   padding: 2rem 1rem;
   background: rgba(12, 20, 32, 0.82);
   border: 1px solid var(--border-0);
@@ -16,6 +16,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin-bottom: 1.5rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--border-0);
@@ -24,6 +26,44 @@
     font-size: 1.5rem;
     color: var(--text-0);
     font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  }
+}
+
+.list-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sort-toggle {
+  border: 1px solid var(--border-0);
+  background: var(--surface-1);
+  color: var(--text-0);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    color 0.2s;
+
+  &:hover {
+    border-color: #3a5a7f;
+    background: #1a2f45;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--accent-0);
+    outline-offset: 2px;
+  }
+
+  &.active {
+    background: rgba(77, 209, 168, 0.18);
+    border-color: rgba(77, 209, 168, 0.55);
+    color: #b6f4df;
   }
 }
 
@@ -48,6 +88,43 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.25rem;
+}
+
+.category-section {
+  margin-top: 1.2rem;
+
+  &:first-of-type {
+    margin-top: 0;
+  }
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+
+  h2 {
+    font-size: 1rem;
+    color: var(--text-0);
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+}
+
+.section-count {
+  font-size: 0.78rem;
+  color: var(--text-1);
+  border: 1px solid var(--border-0);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  background: rgba(18, 30, 46, 0.75);
+}
+
+.section-empty {
+  color: var(--text-1);
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.9rem;
 }
 
 .sighting-card {
@@ -101,5 +178,36 @@
   time {
     font-size: 0.85rem;
     color: var(--text-1);
+  }
+}
+
+.category-badges {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+
+  &.life {
+    color: #b9f7dc;
+    background: rgba(64, 158, 119, 0.2);
+    border-color: rgba(120, 206, 169, 0.45);
+  }
+
+  &.photo {
+    color: #d1e5ff;
+    background: rgba(52, 95, 145, 0.26);
+    border-color: rgba(121, 161, 214, 0.45);
   }
 }
