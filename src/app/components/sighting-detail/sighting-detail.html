@@ -25,6 +25,48 @@
         </section>
       }
 
+      <section class="bird-info" aria-labelledby="bird-info-heading">
+        <h2 id="bird-info-heading">Bird Info</h2>
+
+        @if (birdInfoLoading()) {
+          <p class="bird-info-status" role="status" aria-live="polite">Loading bird info…</p>
+        } @else if (birdInfo(); as info) {
+          <div class="bird-info-content">
+            @if (info.thumbnail) {
+              <img [src]="info.thumbnail" [alt]="info.title + ' reference image'" class="bird-thumb" />
+            }
+            <div class="bird-info-main">
+              <div class="bird-text">
+                <p class="bird-title">{{ info.title }}</p>
+                @if (info.description) {
+                  <p class="bird-subtitle">{{ info.description }}</p>
+                }
+                <p class="bird-summary">{{ info.summary }}</p>
+
+                @if (info.sourceUrl) {
+                  <a [href]="info.sourceUrl" target="_blank" rel="noopener noreferrer" class="bird-link">
+                    Read more
+                  </a>
+                }
+              </div>
+
+              @if (info.rangeMapUrl) {
+                <div class="range-map-block">
+                  <p class="range-map-label">Range map</p>
+                  <img
+                    [src]="info.rangeMapUrl"
+                    [alt]="'Range map for ' + info.title"
+                    class="range-map-image"
+                  />
+                </div>
+              }
+            </div>
+          </div>
+        } @else if (birdInfoError(); as error) {
+          <p class="bird-info-status" role="status" aria-live="polite">{{ error }}</p>
+        }
+      </section>
+
       <section class="location-section">
         <h2>Location</h2>
         <div

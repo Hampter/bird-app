@@ -13,6 +13,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
+import { BirdInfo, BirdInfoService } from '../../services/bird-info.service';
 import { Sighting } from '../../models/sighting.model';
 import { MAP_STYLE } from '../../shared/map.config';
 
@@ -25,12 +26,16 @@ import { MAP_STYLE } from '../../shared/map.config';
 })
 export class SightingDetailComponent implements OnDestroy {
   private readonly sightingService = inject(SightingService);
+  private readonly birdInfoService = inject(BirdInfoService);
   private readonly router = inject(Router);
 
   readonly id = input.required<string>();
 
   protected readonly sighting = signal<Sighting | null>(null);
   protected readonly loading = signal(true);
+  protected readonly birdInfo = signal<BirdInfo | null>(null);
+  protected readonly birdInfoLoading = signal(false);
+  protected readonly birdInfoError = signal<string | null>(null);
 
   private map: Map | null = null;
   readonly mapContainer = viewChild<ElementRef>('detailMap');
@@ -54,11 +59,29 @@ export class SightingDetailComponent implements OnDestroy {
     this.sightingService.getById(id).subscribe({
       next: (s) => {
         this.sighting.set(s);
+        this.loadBirdInfo(s.species);
         this.loading.set(false);
         // Wait for Angular to render the @if block before initializing the map
         setTimeout(() => this.initMap(s));
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private loadBirdInfo(species: string): void {
+    this.birdInfo.set(null);
+    this.birdInfoError.set(null);
+    this.birdInfoLoading.set(true);
+
+    this.birdInfoService.getBySpecies(species).subscribe({
+      next: (info) => {
+        this.birdInfo.set(info);
+        this.birdInfoLoading.set(false);
+      },
+      error: () => {
+        this.birdInfoError.set('No additional bird info is available right now.');
+        this.birdInfoLoading.set(false);
+      },
     });
   }
 

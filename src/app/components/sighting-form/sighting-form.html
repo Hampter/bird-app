@@ -13,13 +13,49 @@
     <div class="form-row">
       <div class="form-group">
         <label for="species">Species <span class="required">*</span></label>
-        <input
-          id="species"
-          formControlName="species"
-          type="text"
-          placeholder="e.g., American Robin"
-          autocomplete="off"
-        />
+        <div class="species-field" ngCombobox #speciesCombobox="ngCombobox" filterMode="manual">
+          <div #origin class="species-combo">
+            <input
+              id="species"
+              formControlName="species"
+              ngComboboxInput
+              type="text"
+              placeholder="e.g., American Robin"
+              autocomplete="off"
+            />
+            @if (ebirdLoading()) {
+              <span class="combo-spinner" aria-hidden="true"></span>
+            }
+          </div>
+
+          <ng-template ngComboboxPopupContainer>
+            <ng-template
+              [cdkConnectedOverlay]="{ origin, usePopover: 'inline', matchWidth: true }"
+              [cdkConnectedOverlayOpen]="speciesCombobox.expanded()"
+              (overlayOutsideClick)="speciesCombobox.close()"
+            >
+              <div class="species-popup">
+                <ul
+                  id="species-listbox"
+                  class="species-dropdown"
+                  ngListbox
+                  [values]="selectedSuggestionValues()"
+                  (valuesChange)="onSpeciesSelected($event); speciesCombobox.close()"
+                  aria-label="Nearby bird species"
+                >
+                  @for (suggestion of filteredSuggestions(); track suggestion) {
+                    <li ngOption [value]="suggestion" [label]="suggestion" class="species-option">
+                      {{ suggestion }}
+                    </li>
+                  }
+                </ul>
+              </div>
+            </ng-template>
+          </ng-template>
+        </div>
+        @if (!ebirdLoading() && allSuggestions().length > 0) {
+          <p class="ebird-hint">{{ allSuggestions().length }} species found nearby via eBird</p>
+        }
       </div>
 
       <div class="form-group">
@@ -86,7 +122,12 @@
     </div>
 
     <div class="form-group">
-      <label for="image">Photo @if (isEditMode()) { (optional replacement) }</label>
+      <label for="image"
+        >Photo
+        @if (isEditMode()) {
+          (optional replacement)
+        }
+      </label>
       <input id="image" type="file" accept="image/*" (change)="onFileSelected($event)" />
       @if (existingImageUrl() && !imagePreview()) {
         <img [src]="existingImageUrl()" alt="Current sighting photo" class="image-preview" />

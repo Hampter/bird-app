@@ -11,19 +11,34 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
+import { OverlayModule } from '@angular/cdk/overlay';
+import { Combobox, ComboboxInput, ComboboxPopupContainer } from '@angular/aria/combobox';
+import { Listbox, Option } from '@angular/aria/listbox';
+import { toObservable, toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { switchMap, distinctUntilChanged, of } from 'rxjs';
 import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
+import { EbirdService } from '../../services/ebird.service';
 import { MAP_STYLE, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../shared/map.config';
 
 @Component({
   selector: 'app-sighting-form',
-  imports: [ReactiveFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    OverlayModule,
+    Combobox,
+    ComboboxInput,
+    ComboboxPopupContainer,
+    Listbox,
+    Option,
+  ],
   templateUrl: './sighting-form.html',
   styleUrl: './sighting-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SightingFormComponent implements OnDestroy {
   private readonly sightingService = inject(SightingService);
+  private readonly ebirdService = inject(EbirdService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -40,6 +55,34 @@ export class SightingFormComponent implements OnDestroy {
   protected readonly locationError = signal<string | null>(null);
   protected readonly editId = signal<number | null>(null);
   protected readonly selectedCoords = signal<{ lat: number; lng: number } | null>(null);
+
+  protected readonly form = new FormGroup({
+    species: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    description: new FormControl('', { nonNullable: true }),
+    sighting_date: new FormControl<string | null>(new Date().toISOString().split('T')[0], {
+      validators: [Validators.required],
+    }),
+    unknown_date: new FormControl(false, { nonNullable: true }),
+    latitude: new FormControl<number | null>(null, { validators: [Validators.required] }),
+    longitude: new FormControl<number | null>(null, { validators: [Validators.required] }),
+  });
+
+  readonly mapContainer = viewChild.required<ElementRef>('locationMap');
+
+  // eBird nearby-species autocomplete
+  protected readonly allSuggestions = signal<string[]>([]);
+  protected readonly ebirdLoading = signal(false);
+  protected readonly selectedSuggestionValues = signal<string[]>([]);
+  private readonly speciesTyped = toSignal(this.form.controls.species.valueChanges, {
+    initialValue: this.form.controls.species.value,
+  });
+  protected readonly filteredSuggestions = computed(() => {
+    const query = this.speciesTyped().trim().toLowerCase();
+    const all = this.allSuggestions();
+    if (all.length === 0) return [];
+    if (!query) return all.slice(0, 8);
+    return all.filter((s) => s.toLowerCase().includes(query)).slice(0, 8);
+  });
   protected readonly geolocationSupported =
     typeof navigator !== 'undefined' && 'geolocation' in navigator;
   protected readonly isEditMode = computed(() => this.editId() !== null);
@@ -56,21 +99,23 @@ export class SightingFormComponent implements OnDestroy {
     return `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
   });
 
-  readonly mapContainer = viewChild.required<ElementRef>('locationMap');
-
-  protected readonly form = new FormGroup({
-    species: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    description: new FormControl('', { nonNullable: true }),
-    sighting_date: new FormControl<string | null>(new Date().toISOString().split('T')[0], {
-      validators: [Validators.required],
-    }),
-    unknown_date: new FormControl(false, { nonNullable: true }),
-    latitude: new FormControl<number | null>(null, { validators: [Validators.required] }),
-    longitude: new FormControl<number | null>(null, { validators: [Validators.required] }),
-  });
-
   constructor() {
     this.initializeEditMode();
+
+    toObservable(this.selectedCoords)
+      .pipe(
+        distinctUntilChanged((a, b) => a?.lat === b?.lat && a?.lng === b?.lng),
+        switchMap((coords) => {
+          if (!coords) return of([]);
+          this.ebirdLoading.set(true);
+          return this.ebirdService.getNearbySpecies(coords.lat, coords.lng);
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe((suggestions) => {
+        this.allSuggestions.set(suggestions);
+        this.ebirdLoading.set(false);
+      });
 
     afterNextRender(() => {
       this.initMap();
@@ -239,6 +284,16 @@ export class SightingFormComponent implements OnDestroy {
     }
   }
 
+  // eBird autocomplete handlers
+
+  protected onSpeciesSelected(values: string[]): void {
+    this.selectedSuggestionValues.set(values);
+    const selected = values[0];
+    if (selected) {
+      this.form.controls.species.setValue(selected);
+    }
+  }
+
   protected onUnknownDateToggle(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
     this.form.controls.unknown_date.setValue(checked);
@@ -268,7 +323,9 @@ export class SightingFormComponent implements OnDestroy {
 
     const editId = this.editId();
     const request$ =
-      editId !== null ? this.sightingService.update(editId, formData) : this.sightingService.create(formData);
+      editId !== null
+        ? this.sightingService.update(editId, formData)
+        : this.sightingService.create(formData);
 
     request$.subscribe({
       next: (sighting) => this.router.navigate(['/sightings', sighting.id]),

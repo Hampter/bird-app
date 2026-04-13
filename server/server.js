@@ -197,6 +197,146 @@ app.put('/api/sightings/:id', upload.single('image'), (req, res) => {
   res.json(updated);
 });
 
+// GET /api/ebird/nearby – proxy recent nearby observations from the eBird API.
+// Set the EBIRD_API_KEY environment variable to enable this endpoint.
+// See https://ebird.org/api/keygen to get a free key.
+app.get('/api/ebird/nearby', async (req, res) => {
+  const apiKey = process.env.EBIRD_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'EBIRD_API_KEY environment variable not configured' });
+  }
+
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  const dist = Math.min(Math.max(parseInt(req.query.dist ?? '50', 10), 1), 50);
+
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    return res.status(400).json({ error: 'Invalid lat parameter' });
+  }
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+    return res.status(400).json({ error: 'Invalid lng parameter' });
+  }
+
+  try {
+    const url =
+      `https://api.ebird.org/v2/data/obs/geo/recent` +
+      `?lat=${lat}&lng=${lng}&dist=${dist}&maxResults=200&fmt=json`;
+
+    const response = await fetch(url, {
+      headers: { 'x-ebirdapitoken': apiKey },
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'eBird API returned an error' });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch {
+    res.status(502).json({ error: 'Failed to reach eBird API' });
+  }
+});
+
+// GET /api/birds/info – fetch basic bird information by species/common name.
+app.get('/api/birds/info', async (req, res) => {
+  const species = (req.query.species || '').toString().trim();
+  if (!species) {
+    return res.status(400).json({ error: 'Missing species parameter' });
+  }
+
+  const fetchSummary = async (query) => {
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return response.json();
+  };
+
+  const fetchWikidataItemId = async (title) => {
+    const url =
+      'https://en.wikipedia.org/w/api.php' +
+      `?action=query&prop=pageprops&ppprop=wikibase_item&titles=${encodeURIComponent(title)}&format=json`;
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const pages = data?.query?.pages;
+    if (!pages) {
+      return null;
+    }
+
+    const firstPage = Object.values(pages)[0];
+    return firstPage?.pageprops?.wikibase_item ?? null;
+  };
+
+  const fetchRangeMap = async (wikidataItemId) => {
+    const url = `https://www.wikidata.org/wiki/Special:EntityData/${wikidataItemId}.json`;
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return { url: null, fileName: null };
+    }
+
+    const data = await response.json();
+    const claims = data?.entities?.[wikidataItemId]?.claims;
+    const rangeClaim = claims?.P181?.[0];
+    const fileName = rangeClaim?.mainsnak?.datavalue?.value ?? null;
+
+    if (!fileName) {
+      return { url: null, fileName: null };
+    }
+
+    return {
+      url: `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fileName)}`,
+      fileName,
+    };
+  };
+
+  try {
+    // Try exact species/common name first, then the common disambiguation fallback.
+    const summary = (await fetchSummary(species)) || (await fetchSummary(`${species} (bird)`));
+
+    if (!summary || summary.type === 'disambiguation') {
+      return res.status(404).json({ error: 'No bird information found for this species' });
+    }
+
+    const wikidataItemId = await fetchWikidataItemId(summary.title);
+    const rangeMap = wikidataItemId
+      ? await fetchRangeMap(wikidataItemId)
+      : { url: null, fileName: null };
+
+    res.json({
+      title: summary.title,
+      summary: summary.extract,
+      description: summary.description,
+      thumbnail: summary.thumbnail?.source ?? null,
+      sourceUrl: summary.content_urls?.desktop?.page ?? null,
+      rangeMapUrl: rangeMap.url,
+      rangeMapFileName: rangeMap.fileName,
+    });
+  } catch {
+    res.status(502).json({ error: 'Failed to fetch bird information' });
+  }
+});
+
 // DELETE /api/sightings/:id
 app.delete('/api/sightings/:id', (req, res) => {
   const sighting = db

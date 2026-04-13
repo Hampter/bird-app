@@ -11,7 +11,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Map, Marker, Popup, LngLatBounds } from 'maplibre-gl';
+import { Map, Marker, Popup, LngLatBounds, GeoJSONSource } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
 import { Sighting } from '../../models/sighting.model';
 import { MAP_STYLE, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../shared/map.config';
@@ -29,7 +29,13 @@ export class MapViewComponent implements OnDestroy {
 
   private map: Map | null = null;
   private markers: Marker[] = [];
+  private activePopup: Popup | null = null;
   private readonly mapReady = signal(false);
+
+  private readonly HEATMAP_SOURCE = 'sightings-heatmap';
+  private readonly HEATMAP_LAYER = 'sightings-heat';
+
+  protected readonly heatmapMode = signal(false);
 
   protected readonly loading = signal(true);
   protected readonly searchTerm = signal('');
@@ -59,7 +65,15 @@ export class MapViewComponent implements OnDestroy {
         return;
       }
 
-      this.addMarkers(this.filteredSightings());
+      const sightings = this.filteredSightings();
+      if (this.heatmapMode()) {
+        this.markers.forEach((m) => m.remove());
+        this.markers = [];
+        this.updateHeatmap(sightings);
+      } else {
+        this.removeHeatmap();
+        this.addMarkers(sightings);
+      }
     });
 
     afterNextRender(() => {
@@ -69,7 +83,26 @@ export class MapViewComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.activePopup?.remove();
     this.map?.remove();
+  }
+
+  private registerPopup(popup: Popup): Popup {
+    popup.on('open', () => {
+      if (this.activePopup && this.activePopup !== popup) {
+        this.activePopup.remove();
+      }
+
+      this.activePopup = popup;
+    });
+
+    popup.on('close', () => {
+      if (this.activePopup === popup) {
+        this.activePopup = null;
+      }
+    });
+
+    return popup;
   }
 
   private initMap(): void {
@@ -116,14 +149,19 @@ export class MapViewComponent implements OnDestroy {
     });
     popupContent.appendChild(addBtn);
 
-    new Popup({
-      anchor: 'bottom',
-      offset: 0,
-      closeOnClick: true,
-    })
-      .setLngLat([lng, lat])
-      .setDOMContent(popupContent)
-      .addTo(this.map);
+    if (this.activePopup) {
+      this.activePopup.remove();
+    }
+
+    const popup = this.registerPopup(
+      new Popup({
+        anchor: 'bottom',
+        offset: 0,
+        closeOnClick: true,
+      }),
+    );
+
+    popup.setLngLat([lng, lat]).setDOMContent(popupContent).addTo(this.map);
   }
 
   private loadSightings(): void {
@@ -143,6 +181,77 @@ export class MapViewComponent implements OnDestroy {
 
   protected clearSearch(): void {
     this.searchTerm.set('');
+  }
+
+  protected toggleHeatmap(): void {
+    this.heatmapMode.update((v) => !v);
+  }
+
+  private updateHeatmap(sightings: Sighting[]): void {
+    if (!this.map) return;
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: sightings.map((s) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [s.longitude, s.latitude] },
+        properties: {},
+      })),
+    };
+
+    const doUpdate = () => {
+      if (!this.map) return;
+      const source = this.map.getSource(this.HEATMAP_SOURCE);
+      if (source) {
+        (source as GeoJSONSource).setData(geojson);
+      } else {
+        this.map.addSource(this.HEATMAP_SOURCE, { type: 'geojson', data: geojson });
+        this.map.addLayer({
+          id: this.HEATMAP_LAYER,
+          type: 'heatmap',
+          source: this.HEATMAP_SOURCE,
+          paint: {
+            'heatmap-weight': 1,
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
+            'heatmap-color': [
+              'interpolate',
+              ['linear'],
+              ['heatmap-density'],
+              0,
+              'rgba(0,0,0,0)',
+              0.2,
+              'rgba(0,128,255,0.65)',
+              0.4,
+              'rgba(0,200,100,0.75)',
+              0.6,
+              'rgba(255,220,0,0.85)',
+              0.8,
+              'rgba(255,130,0,0.9)',
+              1,
+              'rgba(220,30,30,1)',
+            ],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 6, 9, 24],
+            'heatmap-opacity': 0.85,
+          },
+        });
+      }
+    };
+
+    if (this.map.isStyleLoaded()) {
+      doUpdate();
+    } else {
+      this.map.once('load', doUpdate);
+    }
+  }
+
+  private removeHeatmap(): void {
+    if (!this.map || !this.map.isStyleLoaded()) return;
+    if (this.map.getLayer(this.HEATMAP_LAYER)) {
+      this.map.removeLayer(this.HEATMAP_LAYER);
+    }
+    if (this.map.getSource(this.HEATMAP_SOURCE)) {
+      this.map.removeSource(this.HEATMAP_SOURCE);
+    }
   }
 
   private addMarkers(sightings: Sighting[]): void {
@@ -177,7 +286,12 @@ export class MapViewComponent implements OnDestroy {
       });
       popupContent.appendChild(viewBtn);
 
-      const popup = new Popup({ offset: 25 }).setDOMContent(popupContent);
+      const popup = this.registerPopup(
+        new Popup({
+          offset: 25,
+          closeOnClick: true,
+        }).setDOMContent(popupContent),
+      );
 
       const marker = new Marker({ color: '#4a7c59' })
         .setLngLat([sighting.longitude, sighting.latitude])
