@@ -14,7 +14,13 @@ import { Router, RouterLink } from '@angular/router';
 import { Map, Marker, Popup, LngLatBounds, GeoJSONSource } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
 import { Sighting } from '../../models/sighting.model';
-import { MAP_STYLE, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../shared/map.config';
+import {
+  MAP_STYLES,
+  DEFAULT_MAP_STYLE,
+  type MapStyleKey,
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+} from '../../shared/map.config';
 
 @Component({
   selector: 'app-map-view',
@@ -36,6 +42,7 @@ export class MapViewComponent implements OnDestroy {
   private readonly HEATMAP_LAYER = 'sightings-heat';
 
   protected readonly heatmapMode = signal(false);
+  protected readonly mapStyle = signal<MapStyleKey>(DEFAULT_MAP_STYLE);
 
   protected readonly loading = signal(true);
   protected readonly searchTerm = signal('');
@@ -76,6 +83,23 @@ export class MapViewComponent implements OnDestroy {
       }
     });
 
+    effect(() => {
+      if (!this.mapReady() || !this.map) {
+        return;
+      }
+
+      const style = MAP_STYLES[this.mapStyle()];
+      this.map.setStyle(style);
+
+      this.map.once('style.load', () => {
+        if (this.heatmapMode()) {
+          this.updateHeatmap(this.filteredSightings());
+        } else {
+          this.addMarkers(this.filteredSightings());
+        }
+      });
+    });
+
     afterNextRender(() => {
       this.initMap();
       this.loadSightings();
@@ -108,7 +132,7 @@ export class MapViewComponent implements OnDestroy {
   private initMap(): void {
     this.map = new Map({
       container: this.mapContainer().nativeElement,
-      style: MAP_STYLE,
+      style: MAP_STYLES[this.mapStyle()],
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
     });
@@ -185,6 +209,10 @@ export class MapViewComponent implements OnDestroy {
 
   protected toggleHeatmap(): void {
     this.heatmapMode.update((v) => !v);
+  }
+
+  protected setMapStyle(style: MapStyleKey): void {
+    this.mapStyle.set(style);
   }
 
   private updateHeatmap(sightings: Sighting[]): void {

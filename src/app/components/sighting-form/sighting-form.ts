@@ -19,7 +19,12 @@ import { switchMap, distinctUntilChanged, of } from 'rxjs';
 import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
 import { EbirdService } from '../../services/ebird.service';
-import { MAP_STYLE, DEFAULT_CENTER, DEFAULT_ZOOM } from '../../shared/map.config';
+import {
+  MAP_STYLES,
+  DEFAULT_MAP_STYLE,
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+} from '../../shared/map.config';
 
 @Component({
   selector: 'app-sighting-form',
@@ -132,7 +137,7 @@ export class SightingFormComponent implements OnDestroy {
   private initMap(): void {
     this.map = new Map({
       container: this.mapContainer().nativeElement,
-      style: MAP_STYLE,
+      style: MAP_STYLES[DEFAULT_MAP_STYLE],
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
     });

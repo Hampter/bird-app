@@ -15,7 +15,7 @@ import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
 import { BirdInfo, BirdInfoService } from '../../services/bird-info.service';
 import { Sighting } from '../../models/sighting.model';
-import { MAP_STYLE } from '../../shared/map.config';
+import { MAP_STYLES, DEFAULT_MAP_STYLE } from '../../shared/map.config';
 
 @Component({
   selector: 'app-sighting-detail',
@@ -91,7 +91,7 @@ export class SightingDetailComponent implements OnDestroy {
 
     this.map = new Map({
       container,
-      style: MAP_STYLE,
+      style: MAP_STYLES[DEFAULT_MAP_STYLE],
       center: [sighting.longitude, sighting.latitude],
       zoom: 12,
       interactive: false,

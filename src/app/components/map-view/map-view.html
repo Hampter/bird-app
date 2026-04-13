@@ -24,6 +24,35 @@
       }
     </p>
     <p class="search-tip">Tip: click on the map to add a sighting at that location.</p>
+    <div class="style-row" role="group" aria-label="Map style">
+      <button
+        type="button"
+        class="style-btn"
+        [class.active]="mapStyle() === 'regular'"
+        (click)="setMapStyle('regular')"
+        [attr.aria-pressed]="mapStyle() === 'regular'"
+      >
+        Regular
+      </button>
+      <button
+        type="button"
+        class="style-btn"
+        [class.active]="mapStyle() === 'topo'"
+        (click)="setMapStyle('topo')"
+        [attr.aria-pressed]="mapStyle() === 'topo'"
+      >
+        Topo
+      </button>
+      <button
+        type="button"
+        class="style-btn"
+        [class.active]="mapStyle() === 'satellite'"
+        (click)="setMapStyle('satellite')"
+        [attr.aria-pressed]="mapStyle() === 'satellite'"
+      >
+        Satellite
+      </button>
+    </div>
     <div class="mode-row">
       <button
         type="button"
