@@ -244,13 +244,15 @@ app.get('/api/birds/info', async (req, res) => {
     return res.status(400).json({ error: 'Missing species parameter' });
   }
 
+  const wikiHeaders = {
+    accept: 'application/json',
+    // Wikimedia requests a meaningful User-Agent for API usage.
+    'user-agent': 'BirdLog/1.0 (https://bird.nspringer.dev)',
+  };
+
   const fetchSummary = async (query) => {
     const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-      },
-    });
+    const response = await fetch(url, { headers: wikiHeaders });
 
     if (!response.ok) {
       return null;
@@ -259,15 +261,25 @@ app.get('/api/birds/info', async (req, res) => {
     return response.json();
   };
 
+  const searchWikipediaTitle = async (query) => {
+    const url =
+      'https://en.wikipedia.org/w/api.php' +
+      `?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=1&format=json`;
+    const response = await fetch(url, { headers: wikiHeaders });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data?.query?.search?.[0]?.title ?? null;
+  };
+
   const fetchWikidataItemId = async (title) => {
     const url =
       'https://en.wikipedia.org/w/api.php' +
       `?action=query&prop=pageprops&ppprop=wikibase_item&titles=${encodeURIComponent(title)}&format=json`;
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-      },
-    });
+    const response = await fetch(url, { headers: wikiHeaders });
 
     if (!response.ok) {
       return null;
@@ -285,11 +297,7 @@ app.get('/api/birds/info', async (req, res) => {
 
   const fetchRangeMap = async (wikidataItemId) => {
     const url = `https://www.wikidata.org/wiki/Special:EntityData/${wikidataItemId}.json`;
-    const response = await fetch(url, {
-      headers: {
-        accept: 'application/json',
-      },
-    });
+    const response = await fetch(url, { headers: wikiHeaders });
 
     if (!response.ok) {
       return { url: null, fileName: null };
@@ -311,8 +319,15 @@ app.get('/api/birds/info', async (req, res) => {
   };
 
   try {
-    // Try exact species/common name first, then the common disambiguation fallback.
-    const summary = (await fetchSummary(species)) || (await fetchSummary(`${species} (bird)`));
+    // Try exact species/common name, then common fallback title, then Wikipedia search.
+    let summary = (await fetchSummary(species)) || (await fetchSummary(`${species} (bird)`));
+
+    if (!summary || summary.type === 'disambiguation') {
+      const discoveredTitle = await searchWikipediaTitle(`${species} bird`);
+      if (discoveredTitle) {
+        summary = await fetchSummary(discoveredTitle);
+      }
+    }
 
     if (!summary || summary.type === 'disambiguation') {
       return res.status(404).json({ error: 'No bird information found for this species' });
