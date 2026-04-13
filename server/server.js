@@ -9,6 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+const MAX_UPLOAD_SIZE_MB = Number.parseInt(process.env.MAX_UPLOAD_SIZE_MB ?? '50', 10);
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
 // Ensure directories exist
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -103,7 +105,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: MAX_UPLOAD_SIZE_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -436,8 +438,23 @@ app.delete('/api/sightings/:id', (req, res) => {
   res.status(204).send();
 });
 
+app.use((error, _req, res, next) => {
+  if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      error: `Image too large. Maximum upload size is ${MAX_UPLOAD_SIZE_MB} MB.`,
+    });
+  }
+
+  if (error instanceof Error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  return next(error);
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Bird sightings API running on http://localhost:${PORT}`);
   console.log(`Data directory: ${DATA_DIR}`);
+  console.log(`Max upload size: ${MAX_UPLOAD_SIZE_MB} MB`);
 });
