@@ -40,6 +40,17 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS wishlist_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    species TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    notes TEXT,
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Migration: allow nullable `sighting_date` for backlog entries with unknown date.
 const sightingDateInfo = db
   .prepare("PRAGMA table_info('sightings')")
@@ -84,6 +95,43 @@ if (!hasLifeLister) {
 }
 if (!hasPhotoOnly) {
   db.exec('ALTER TABLE sightings ADD COLUMN photo_only INTEGER NOT NULL DEFAULT 0');
+}
+
+const wishlistColumns = db.prepare("PRAGMA table_info('wishlist_items')").all();
+const hasWishlistNotes = wishlistColumns.some((column) => column.name === 'notes');
+const hasWishlistPriority = wishlistColumns.some((column) => column.name === 'priority');
+const hasWishlistCreatedAt = wishlistColumns.some((column) => column.name === 'created_at');
+const hasWishlistUpdatedAt = wishlistColumns.some((column) => column.name === 'updated_at');
+
+if (!hasWishlistNotes) {
+  db.exec('ALTER TABLE wishlist_items ADD COLUMN notes TEXT');
+}
+if (!hasWishlistPriority) {
+  db.exec("ALTER TABLE wishlist_items ADD COLUMN priority TEXT");
+  db.exec("UPDATE wishlist_items SET priority = 'medium' WHERE priority IS NULL OR priority = ''");
+}
+if (!hasWishlistCreatedAt) {
+  db.exec('ALTER TABLE wishlist_items ADD COLUMN created_at TEXT');
+  db.exec("UPDATE wishlist_items SET created_at = datetime('now') WHERE created_at IS NULL");
+}
+if (!hasWishlistUpdatedAt) {
+  db.exec('ALTER TABLE wishlist_items ADD COLUMN updated_at TEXT');
+  db.exec("UPDATE wishlist_items SET updated_at = created_at WHERE updated_at IS NULL");
+}
+
+const VALID_WISHLIST_PRIORITIES = new Set(['low', 'medium', 'high']);
+
+function normalizeWishlistPayload(body = {}) {
+  const species = typeof body.species === 'string' ? body.species.trim() : '';
+  const notes = typeof body.notes === 'string' ? body.notes.trim() : '';
+  const priorityValue = typeof body.priority === 'string' ? body.priority.trim().toLowerCase() : '';
+  const priority = VALID_WISHLIST_PRIORITIES.has(priorityValue) ? priorityValue : 'medium';
+
+  return {
+    species,
+    notes: notes || null,
+    priority,
+  };
 }
 
 // Middleware
@@ -132,6 +180,112 @@ app.get('/api/sightings/:id', (req, res) => {
     .get(req.params.id);
   if (!sighting) return res.status(404).json({ error: 'Sighting not found' });
   res.json(sighting);
+});
+
+// GET /api/wishlist – list all wishlist items
+app.get('/api/wishlist', (_req, res) => {
+  const wishlistItems = db
+    .prepare(
+      `SELECT *
+         FROM wishlist_items
+        ORDER BY CASE priority
+          WHEN 'high' THEN 1
+          WHEN 'medium' THEN 2
+          ELSE 3
+        END,
+        created_at DESC,
+        id DESC`,
+    )
+    .all();
+
+  res.json(wishlistItems);
+});
+
+// POST /api/wishlist – create a wishlist item
+app.post('/api/wishlist', (req, res) => {
+  const { species, notes, priority } = normalizeWishlistPayload(req.body);
+
+  if (!species) {
+    return res.status(400).json({ error: 'Species is required' });
+  }
+
+  try {
+    const result = db
+      .prepare(
+        `INSERT INTO wishlist_items (species, notes, priority)
+         VALUES (?, ?, ?)`,
+      )
+      .run(species, notes, priority);
+
+    const wishlistItem = db
+      .prepare('SELECT * FROM wishlist_items WHERE id = ?')
+      .get(result.lastInsertRowid);
+
+    return res.status(201).json(wishlistItem);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'That species is already on your wishlist' });
+    }
+
+    return res.status(500).json({ error: 'Unable to create wishlist item' });
+  }
+});
+
+// PUT /api/wishlist/:id – update a wishlist item
+app.put('/api/wishlist/:id', (req, res) => {
+  const existing = db
+    .prepare('SELECT * FROM wishlist_items WHERE id = ?')
+    .get(req.params.id);
+
+  if (!existing) {
+    return res.status(404).json({ error: 'Wishlist item not found' });
+  }
+
+  const payload = normalizeWishlistPayload(req.body);
+  const species = payload.species || existing.species;
+  const notes = req.body.notes !== undefined ? payload.notes : existing.notes;
+  const priority = req.body.priority !== undefined ? payload.priority : existing.priority;
+
+  if (!species) {
+    return res.status(400).json({ error: 'Species is required' });
+  }
+
+  try {
+    db.prepare(
+      `UPDATE wishlist_items
+          SET species = ?,
+              notes = ?,
+              priority = ?,
+              updated_at = datetime('now')
+        WHERE id = ?`,
+    ).run(species, notes, priority, req.params.id);
+
+    const updated = db
+      .prepare('SELECT * FROM wishlist_items WHERE id = ?')
+      .get(req.params.id);
+
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'That species is already on your wishlist' });
+    }
+
+    return res.status(500).json({ error: 'Unable to update wishlist item' });
+  }
+});
+
+// DELETE /api/wishlist/:id – remove a wishlist item
+app.delete('/api/wishlist/:id', (req, res) => {
+  const existing = db
+    .prepare('SELECT id FROM wishlist_items WHERE id = ?')
+    .get(req.params.id);
+
+  if (!existing) {
+    return res.status(404).json({ error: 'Wishlist item not found' });
+  }
+
+  db.prepare('DELETE FROM wishlist_items WHERE id = ?').run(req.params.id);
+  return res.status(204).send();
 });
 
 // POST /api/sightings – create a new sighting (multipart form)
@@ -304,6 +458,44 @@ app.get('/api/ebird/nearby', async (req, res) => {
     res.json(data);
   } catch {
     res.status(502).json({ error: 'Failed to reach eBird API' });
+  }
+});
+
+// GET /api/ebird/notable – proxy nearby notable observations from the eBird API.
+app.get('/api/ebird/notable', async (req, res) => {
+  const apiKey = process.env.EBIRD_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'EBIRD_API_KEY environment variable not configured' });
+  }
+
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  const dist = Math.min(Math.max(parseInt(req.query.dist ?? '50', 10), 1), 50);
+
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    return res.status(400).json({ error: 'Invalid lat parameter' });
+  }
+  if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+    return res.status(400).json({ error: 'Invalid lng parameter' });
+  }
+
+  try {
+    const url =
+      `https://api.ebird.org/v2/data/obs/geo/recent/notable` +
+      `?lat=${lat}&lng=${lng}&dist=${dist}&maxResults=200&fmt=json`;
+
+    const response = await fetch(url, {
+      headers: { 'x-ebirdapitoken': apiKey },
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'eBird API returned an error' });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch {
+    return res.status(502).json({ error: 'Failed to reach eBird API' });
   }
 });
 

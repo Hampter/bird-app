@@ -12,10 +12,13 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Map, Marker } from 'maplibre-gl';
+import { HttpErrorResponse } from '@angular/common/http';
 import { SightingService } from '../../services/sighting.service';
 import { BirdInfo, BirdInfoService } from '../../services/bird-info.service';
 import { Sighting } from '../../models/sighting.model';
 import { MAP_STYLES, DEFAULT_MAP_STYLE } from '../../shared/map.config';
+import { WishlistService } from '../../services/wishlist.service';
+import type { WishlistItem } from '../../models/wishlist-item.model';
 
 @Component({
   selector: 'app-sighting-detail',
@@ -27,6 +30,7 @@ import { MAP_STYLES, DEFAULT_MAP_STYLE } from '../../shared/map.config';
 export class SightingDetailComponent implements OnDestroy {
   private readonly sightingService = inject(SightingService);
   private readonly birdInfoService = inject(BirdInfoService);
+  private readonly wishlistService = inject(WishlistService);
   private readonly router = inject(Router);
 
   readonly id = input.required<string>();
@@ -36,6 +40,8 @@ export class SightingDetailComponent implements OnDestroy {
   protected readonly birdInfo = signal<BirdInfo | null>(null);
   protected readonly birdInfoLoading = signal(false);
   protected readonly birdInfoError = signal<string | null>(null);
+  protected readonly wishlistSubmitting = signal(false);
+  protected readonly wishlistStatus = signal<string | null>(null);
 
   private map: Map | null = null;
   readonly mapContainer = viewChild<ElementRef>('detailMap');
@@ -113,5 +119,40 @@ export class SightingDetailComponent implements OnDestroy {
     this.sightingService.delete(sighting.id).subscribe(() => {
       this.router.navigate(['/']);
     });
+  }
+
+  protected addToWishlist(): void {
+    const sighting = this.sighting();
+    if (!sighting || this.wishlistSubmitting()) {
+      return;
+    }
+
+    this.wishlistSubmitting.set(true);
+    this.wishlistStatus.set(null);
+
+    this.wishlistService
+      .create({
+        species: sighting.species,
+        notes: sighting.description ?? '',
+        priority: 'medium',
+      })
+      .subscribe({
+        next: (_wishlistItem: WishlistItem) => {
+          this.wishlistSubmitting.set(false);
+          this.wishlistStatus.set(`${sighting.species} added to your wishlist.`);
+        },
+        error: (error: unknown) => {
+          this.wishlistSubmitting.set(false);
+          this.wishlistStatus.set(this.getWishlistErrorMessage(error));
+        },
+      });
+  }
+
+  private getWishlistErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && typeof error.error?.error === 'string') {
+      return error.error.error;
+    }
+
+    return 'Unable to add this bird to your wishlist right now.';
   }
 }

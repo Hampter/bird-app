@@ -1,0 +1,178 @@
+<div class="wishlist-page">
+  <header class="wishlist-header">
+    <div>
+      <p class="eyebrow">Bird goals</p>
+      <h1>Wishlist</h1>
+      <p class="page-copy">Track target species, add field notes, and turn a wishlist entry into a sighting once you finally spot it.</p>
+    </div>
+  </header>
+
+  @if (statusMessage(); as status) {
+    <p class="status-message" role="status" aria-live="polite">{{ status }}</p>
+  }
+
+  @if (errorMessage(); as error) {
+    <p class="error-message" role="alert">{{ error }}</p>
+  }
+
+  <section class="composer-card" aria-labelledby="wishlist-add-heading">
+    <div class="card-header">
+      <h2 id="wishlist-add-heading">Add a species</h2>
+      <p>Keep this lightweight: species name, optional notes, and how badly you want the sighting.</p>
+    </div>
+
+    <form class="composer-form" [formGroup]="createForm" (ngSubmit)="addItem()">
+      <label class="field">
+        <span>Species <span class="required">*</span></span>
+        <input type="text" formControlName="species" placeholder="e.g., Cedar Waxwing" />
+      </label>
+
+      <label class="field field-wide">
+        <span>Notes</span>
+        <textarea
+          formControlName="notes"
+          rows="3"
+          placeholder="Season, habitat, or why this bird matters to you"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span>Priority</span>
+        <select formControlName="priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </label>
+
+      <div class="composer-actions">
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          @if (saving()) {
+            Adding...
+          } @else {
+            Add to wishlist
+          }
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="wishlist-toolbar" aria-label="Wishlist controls">
+    <label class="toolbar-field">
+      <span>Filter</span>
+      <input
+        type="search"
+        [value]="filterQuery()"
+        (input)="onFilterInput($event)"
+        placeholder="Search species or notes"
+      />
+    </label>
+
+    <label class="toolbar-field toolbar-field-compact">
+      <span>Sort</span>
+      <select [value]="sortBy()" (change)="onSortChange($event)">
+        <option value="priority">Priority</option>
+        <option value="newest">Newest added</option>
+        <option value="species">Species name</option>
+      </select>
+    </label>
+  </section>
+
+  @if (loading()) {
+    <p class="loading">Loading wishlist…</p>
+  } @else if (visibleItems().length === 0 && wishlistItems().length === 0) {
+    <div class="empty-state">
+      <p>Your wishlist is empty.</p>
+      <p>Add a target species above to start planning your next birding win.</p>
+    </div>
+  } @else if (visibleItems().length === 0) {
+    <div class="empty-state filtered-empty">
+      <p>No wishlist items match that filter.</p>
+    </div>
+  } @else {
+    <div class="wishlist-grid" role="list">
+      @for (item of visibleItems(); track item.id) {
+        <article
+          class="wishlist-card"
+          [class.priority-high]="item.priority === 'high'"
+          [class.priority-medium]="item.priority === 'medium'"
+          [class.priority-low]="item.priority === 'low'"
+          [class.is-editing]="editingId() === item.id"
+          role="listitem"
+        >
+          @if (editingId() === item.id) {
+            <form class="edit-form" [formGroup]="editForm" (ngSubmit)="saveEdit(item.id)">
+              <label class="field">
+                <span>Species <span class="required">*</span></span>
+                <input type="text" formControlName="species" />
+              </label>
+
+              <label class="field field-wide">
+                <span>Notes</span>
+                <textarea formControlName="notes" rows="4"></textarea>
+              </label>
+
+              <label class="field">
+                <span>Priority</span>
+                <select formControlName="priority">
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+
+              <div class="card-actions">
+                <button type="submit" class="btn btn-primary" [disabled]="actionBusyId() === item.id">
+                  @if (actionBusyId() === item.id) {
+                    Saving...
+                  } @else {
+                    Save
+                  }
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="cancelEditing()">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          } @else {
+            <div class="card-content">
+              <div class="card-topline">
+                <p class="priority-pill">{{ priorityLabel(item.priority) }}</p>
+                <time [attr.datetime]="item.created_at">Added {{ item.created_at | date: 'MMM d, y' }}</time>
+              </div>
+
+              <h2>{{ item.species }}</h2>
+
+              @if (item.notes) {
+                <p class="notes">{{ item.notes }}</p>
+              } @else {
+                <p class="notes notes-empty">No notes yet.</p>
+              }
+
+              <div class="card-actions">
+                <button type="button" class="btn btn-primary" (click)="markAsSeen(item)">
+                  Mark as seen
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="startEditing(item)">
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-danger"
+                  (click)="removeItem(item)"
+                  [disabled]="actionBusyId() === item.id"
+                >
+                  @if (actionBusyId() === item.id) {
+                    Removing...
+                  } @else {
+                    Remove
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</div>

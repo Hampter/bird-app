@@ -1,0 +1,44 @@
+<div class="area-browser-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Explore</p>
+      <h1>Select An Area</h1>
+      <p class="page-copy">Step 1 of 2: choose a point on the map and set a search radius.</p>
+    </div>
+  </header>
+
+  <section class="map-card">
+    <div class="controls">
+      <label class="control-field" for="browse-radius">
+        <span>Search radius</span>
+        <select id="browse-radius" [value]="browseRadiusKm()" (change)="onBrowseRadiusChange($event)">
+          <option value="5">5 km</option>
+          <option value="10">10 km</option>
+          <option value="25">25 km</option>
+          <option value="50">50 km</option>
+        </select>
+      </label>
+
+      <div class="selected-point" aria-live="polite">
+        <span>Selected point</span>
+        <strong>{{ selectedPointLabel() }}</strong>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-primary browse-btn"
+        (click)="continueToBirds()"
+        [disabled]="!selectedPoint()"
+      >
+        Continue To Bird List
+      </button>
+    </div>
+
+    <div
+      #mapContainer
+      class="selection-map"
+      role="application"
+      aria-label="Map for selecting an area to browse birds"
+    ></div>
+  </section>
+</div>

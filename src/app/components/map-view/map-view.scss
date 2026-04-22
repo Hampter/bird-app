@@ -85,6 +85,32 @@
   color: var(--text-1);
 }
 
+.explore-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.65rem;
+  min-height: 36px;
+  width: 100%;
+  border: 1px solid var(--border-0);
+  border-radius: 8px;
+  background: rgba(77, 209, 168, 0.12);
+  color: var(--text-0);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+    background: rgba(77, 209, 168, 0.2);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--accent-0);
+    outline-offset: 2px;
+  }
+}
+
 .style-row {
   margin-top: 0.5rem;
   display: grid;

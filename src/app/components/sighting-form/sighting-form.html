@@ -1,6 +1,10 @@
 <div class="form-page">
   <h1>{{ pageTitle() }}</h1>
 
+  @if (wishlistNotice(); as notice) {
+    <p class="load-status" role="status" aria-live="polite">{{ notice }}</p>
+  }
+
   @if (loadError(); as error) {
     <p class="load-error" role="status" aria-live="polite">{{ error }}</p>
   }

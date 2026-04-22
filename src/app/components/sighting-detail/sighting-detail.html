@@ -103,10 +103,26 @@
       <nav class="actions" aria-label="Sighting actions">
         <a routerLink="/sightings" class="btn btn-secondary">← Back</a>
         <a [routerLink]="['/sightings', s.id, 'edit']" class="btn btn-primary">Edit Sighting</a>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="addToWishlist()"
+          [disabled]="wishlistSubmitting()"
+        >
+          @if (wishlistSubmitting()) {
+            Adding to wishlist...
+          } @else {
+            Add to Wishlist
+          }
+        </button>
         <button type="button" (click)="deleteSighting()" class="btn btn-danger">
           Delete Sighting
         </button>
       </nav>
+
+      @if (wishlistStatus(); as status) {
+        <p class="bird-info-status" role="status" aria-live="polite">{{ status }}</p>
+      }
     </article>
   } @else {
     <p class="not-found">Sighting not found.</p>

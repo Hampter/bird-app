@@ -15,10 +15,11 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { Combobox, ComboboxInput, ComboboxPopupContainer } from '@angular/aria/combobox';
 import { Listbox, Option } from '@angular/aria/listbox';
 import { toObservable, toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { switchMap, distinctUntilChanged, of } from 'rxjs';
+import { distinctUntilChanged, of, switchMap, catchError } from 'rxjs';
 import { Map, Marker } from 'maplibre-gl';
 import { SightingService } from '../../services/sighting.service';
 import { EbirdService } from '../../services/ebird.service';
+import { WishlistService } from '../../services/wishlist.service';
 import {
   MAP_STYLES,
   DEFAULT_MAP_STYLE,
@@ -44,6 +45,7 @@ import {
 export class SightingFormComponent implements OnDestroy {
   private readonly sightingService = inject(SightingService);
   private readonly ebirdService = inject(EbirdService);
+  private readonly wishlistService = inject(WishlistService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -60,6 +62,8 @@ export class SightingFormComponent implements OnDestroy {
   protected readonly locationError = signal<string | null>(null);
   protected readonly editId = signal<number | null>(null);
   protected readonly selectedCoords = signal<{ lat: number; lng: number } | null>(null);
+  protected readonly wishlistSourceId = signal<number | null>(null);
+  protected readonly wishlistMode = signal(false);
 
   protected readonly form = new FormGroup({
     species: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -100,6 +104,13 @@ export class SightingFormComponent implements OnDestroy {
   protected readonly submitLabel = computed(() =>
     this.isEditMode() ? 'Save Changes' : 'Save Sighting',
   );
+  protected readonly wishlistNotice = computed(() => {
+    if (!this.wishlistMode()) {
+      return null;
+    }
+
+    return 'This sighting came from your wishlist. Saving it will remove the wishlist item.';
+  });
 
   protected readonly coordsDisplay = computed(() => {
     const coords = this.selectedCoords();
@@ -109,19 +120,29 @@ export class SightingFormComponent implements OnDestroy {
 
   constructor() {
     this.initializeEditMode();
+    if (!this.isEditMode()) {
+      this.initializeQueryPrefill();
+    }
 
     toObservable(this.selectedCoords)
       .pipe(
         distinctUntilChanged((a, b) => a?.lat === b?.lat && a?.lng === b?.lng),
         switchMap((coords) => {
-          if (!coords) return of([]);
+          if (!coords) {
+            this.allSuggestions.set([]);
+            this.ebirdLoading.set(false);
+            return of([]);
+          }
+
           this.ebirdLoading.set(true);
-          return this.ebirdService.getNearbySpecies(coords.lat, coords.lng);
+          return this.ebirdService.getNearbySpecies(coords.lat, coords.lng).pipe(
+            catchError(() => of([])),
+          );
         }),
         takeUntilDestroyed(),
       )
-      .subscribe((suggestions) => {
-        this.allSuggestions.set(suggestions);
+      .subscribe((coords) => {
+        this.allSuggestions.set(coords);
         this.ebirdLoading.set(false);
       });
 
@@ -174,6 +195,28 @@ export class SightingFormComponent implements OnDestroy {
 
     this.editId.set(parsedId);
     this.loadExistingSighting(parsedId);
+  }
+
+  private initializeQueryPrefill(): void {
+    const wishlistIdParam = this.route.snapshot.queryParamMap.get('wishlistId');
+    const species = this.route.snapshot.queryParamMap.get('species');
+    const notes = this.route.snapshot.queryParamMap.get('notes');
+
+    if (wishlistIdParam) {
+      const wishlistId = Number.parseInt(wishlistIdParam, 10);
+      if (!Number.isNaN(wishlistId)) {
+        this.wishlistSourceId.set(wishlistId);
+        this.wishlistMode.set(true);
+      }
+    }
+
+    if (species) {
+      this.form.controls.species.setValue(species);
+    }
+
+    if (notes) {
+      this.form.controls.description.setValue(notes);
+    }
   }
 
   private loadExistingSighting(id: number): void {
@@ -351,7 +394,18 @@ export class SightingFormComponent implements OnDestroy {
         : this.sightingService.create(formData);
 
     request$.subscribe({
-      next: (sighting) => this.router.navigate(['/sightings', sighting.id]),
+      next: (sighting) => {
+        const wishlistSourceId = this.wishlistSourceId();
+        if (editId === null && wishlistSourceId !== null) {
+          this.wishlistService.delete(wishlistSourceId).subscribe({
+            next: () => this.router.navigate(['/sightings', sighting.id]),
+            error: () => this.router.navigate(['/sightings', sighting.id]),
+          });
+          return;
+        }
+
+        this.router.navigate(['/sightings', sighting.id]);
+      },
       error: () => this.submitting.set(false),
     });
   }

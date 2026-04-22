@@ -1,0 +1,94 @@
+<div class="area-results-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Explore</p>
+      <h1>Birds In Selected Area</h1>
+      <p class="page-copy">Grouped results for your selected map point and radius.</p>
+      @if (selectedPointLabel(); as pointLabel) {
+        <p class="selection-meta">Area: {{ pointLabel }} • Radius: {{ browseRadiusKm() }} km</p>
+      }
+    </div>
+    <a
+      routerLink="/explore"
+      [queryParams]="{ lat: selectedPoint()?.lat, lng: selectedPoint()?.lng, dist: browseRadiusKm() }"
+      class="btn btn-secondary"
+    >
+      Back to Map Selection
+    </a>
+  </header>
+
+  <section class="results-card" aria-labelledby="results-heading">
+    <div class="results-header">
+      <h2 id="results-heading">Birds</h2>
+      @if (speciesResults().length > 0) {
+        <span class="results-count">{{ speciesResults().length }}</span>
+      }
+    </div>
+
+    @if (notableFeedUnavailable()) {
+      <p class="status-message warning" role="status" aria-live="polite">
+        Rarity data is temporarily unavailable, showing birds only.
+      </p>
+    }
+
+    @if (error(); as errorMessage) {
+      <p class="status-message error" role="alert">{{ errorMessage }}</p>
+      <button type="button" class="btn btn-primary retry-btn" (click)="retry()">Try Again</button>
+    } @else if (loading()) {
+      <p class="status-message" role="status" aria-live="polite">Loading birds in this area…</p>
+    } @else if (loaded() && speciesResults().length === 0) {
+      <p class="status-message">No birds were found for that point and radius.</p>
+    } @else if (speciesResults().length > 0) {
+      <div class="bird-groups">
+        @for (group of groupedSpecies(); track trackSpeciesGroup($index, group)) {
+          <section class="bird-group" [attr.aria-labelledby]="'group-' + group.type">
+            <div class="bird-group-header">
+              <h3 [id]="'group-' + group.type">{{ group.type }}</h3>
+              <span class="group-count">{{ group.birds.length }}</span>
+            </div>
+            <ul class="bird-list" role="list" [attr.aria-label]="group.type + ' in selected area'">
+              @for (species of group.birds; track trackSpecies($index, species)) {
+                <li class="bird-item" role="listitem">
+                  <div class="bird-image-wrap" aria-hidden="true">
+                    @if (speciesImage(species); as imageUrl) {
+                      <img [src]="imageUrl" [alt]="''" class="bird-image" />
+                    } @else if (speciesImageLoading(species)) {
+                      <div class="bird-image placeholder loading"></div>
+                    } @else {
+                      <div class="bird-image placeholder">{{ speciesName(species).charAt(0) }}</div>
+                    }
+                  </div>
+                  <div class="bird-main">
+                    <div class="bird-title-row">
+                      <p>{{ speciesName(species) }}</p>
+                      @if (isNotable(species)) {
+                        <span class="notable-badge">Notable</span>
+                      }
+                      @if (rarityLevel(species) !== 'normal') {
+                        <span class="rarity-pill" [class.high]="rarityLevel(species) === 'high'" [class.medium]="rarityLevel(species) === 'medium'">
+                          {{ rarityLabel(species) }}
+                        </span>
+                      }
+                    </div>
+                    @if (speciesImageLink(species); as imageLink) {
+                      <a [href]="imageLink" target="_blank" rel="noopener noreferrer" class="image-source">
+                        Source: Wikipedia
+                      </a>
+                    } @else {
+                      <span class="image-source muted">No image available</span>
+                    }
+                  </div>
+                  <button type="button" class="btn btn-secondary" (click)="logSpecies(species)">
+                    Log this bird
+                  </button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+    } @else {
+      <p class="status-message">Use the Explore map selection to choose an area first.</p>
+    }
+  </section>
+</div>
